@@ -224,7 +224,7 @@ local Toggle = Tab:CreateToggle({
    end,
 })
 
--- Toggle Gabungan untuk Enemy (Warna Merah - Anti Invisible)
+-- Toggle Gabungan untuk Enemy (Warna Merah - Campuran Highlight & Box ESP)
 local ToggleGataGrunts = Tab:CreateToggle({
    Name = "ESP Enemies",
    CurrentValue = false,
@@ -232,7 +232,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
    Callback = function(Value)
       _G.GataGruntsESP = Value
       
-      -- Daftar nama semua objek musuh
+      -- Daftar nama semua objek musuh (Termasuk Tenome, Rin, dan Tsukiya)
       local targetNames = {
          ["Gata"] = true,
          ["Gata2"] = true,
@@ -247,64 +247,228 @@ local ToggleGataGrunts = Tab:CreateToggle({
          ["Muki2"] = true,
          ["HogoGuntai"] = true,
          ["Baigai"] = true,
-         ["MikaDies"] = true,
          ["AkariRageNM"] = true,
-         ["MizunoNM"] = true
+         ["MizunoNM"] = true,
+         ["Akari"] = true,
+         ["Tenome"] = true,   -- Musuh baru dari Floor 1
+         ["Rin"] = true,      -- Musuh baru dari Floor 2
+         ["Tsukiya"] = true   -- Musuh baru dari Floor 3
       }
 
-      -- Fungsi untuk memasang Highlight dan mengunci transparansinya
-      local function applyHighlight(obj)
-         if targetNames[obj.Name] and not obj:FindFirstChild("EnemyHighlight") then
-            local highlight = Instance.new("Highlight")
-            highlight.Name = "EnemyHighlight"
-            highlight.FillColor = Color3.fromRGB(255, 0, 0) -- Merah
-            highlight.FillTransparency = 0.5
-            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-            highlight.OutlineTransparency = 0
-            highlight.Parent = obj
+      -- Fungsi untuk memasang ESP sesuai jenis objek
+      local function applyESP(obj)
+         if targetNames[obj.Name] then
+            
+            -- KHUSUS AKARI & AKARINM: Menggunakan BoxHandleAdornment (Anti Invisible)
+            if obj.Name == "Akari" or obj.Name == "AkariNM" then
+               if not obj:FindFirstChild("EnemyBoxESP") then
+                  local mainPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")) or (obj:IsA("BasePart") and obj)
+                  
+                  if mainPart then
+                     local box = Instance.new("BoxHandleAdornment")
+                     box.Name = "EnemyBoxESP"
+                     box.Size = obj:IsA("Model") and (obj:GetExtentsSize() + Vector3.new(0.2, 0.2, 0.2)) or (mainPart.Size + Vector3.new(0.2, 0.2, 0.2))
+                     box.Color3 = Color3.fromRGB(255, 0, 0) -- Merah
+                     box.Transparency = 0.6
+                     box.AlwaysOnTop = true
+                     box.ZIndex = 10
+                     box.Adornee = mainPart
+                     box.Parent = obj
 
-            -- Loop khusus untuk memaksa Highlight tetap terlihat walaupun objek invisible
-            task.spawn(function()
-               while _G.GataGruntsESP and highlight and highlight.Parent do
-                  if highlight.FillTransparency ~= 0.5 or highlight.OutlineTransparency ~= 0 then
-                     highlight.FillTransparency = 0.5
-                     highlight.OutlineTransparency = 0
+                     local selectionBox = Instance.new("SelectionBox")
+                     selectionBox.Name = "EnemyBoxOutline"
+                     selectionBox.Color3 = Color3.fromRGB(255, 255, 255)
+                     selectionBox.LineThickness = 0.05
+                     selectionBox.Adornee = mainPart
+                     selectionBox.Parent = box
                   end
-                  task.wait(0.3) -- Memeriksa setiap 0.3 detik agar tidak membebani performa
                end
-            end)
+               
+            -- UNTUK MUSUH LAINNYA: Kembali Menggunakan Highlight Asli
+            else
+               if not obj:FindFirstChild("EnemyHighlight") then
+                  local highlight = Instance.new("Highlight")
+                  highlight.Name = "EnemyHighlight"
+                  highlight.FillColor = Color3.fromRGB(255, 0, 0) -- Merah
+                  highlight.FillTransparency = 0.5
+                  highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                  highlight.OutlineTransparency = 0
+                  highlight.Parent = obj
+
+                  -- Loop khusus untuk memaksa Highlight tetap terlihat walaupun objek invisible
+                  task.spawn(function()
+                     while _G.GataGruntsESP and highlight and highlight.Parent do
+                        if highlight.FillTransparency ~= 0.5 or highlight.OutlineTransparency ~= 0 then
+                           highlight.FillTransparency = 0.5
+                           highlight.OutlineTransparency = 0
+                        end
+                        task.wait(0.3)
+                     end
+                  end)
+               end
+            end
+
          end
       end
 
-      -- Fungsi untuk menghapus semua Highlight
-      local function removeHighlight()
+      -- Fungsi untuk menghapus semua jenis ESP
+      local function removeESP()
          for _, v in pairs(workspace:GetDescendants()) do
-            if v.Name == "EnemyHighlight" then
+            if v.Name == "EnemyHighlight" or v.Name == "EnemyBoxESP" then
                v:Destroy()
             end
          end
       end
 
-      -- Bersihkan koneksi global sebelumnya jika ada
+      -- Bersihkan koneksi lama jika ada (Sisa dari script sebelumnya)
       if _G.GlobalEnemyConnection then 
          _G.GlobalEnemyConnection:Disconnect() 
          _G.GlobalEnemyConnection = nil 
       end
 
       if _G.GataGruntsESP then
-         -- 1. Scan semua objek yang saat ini sudah ada
-         for _, child in pairs(workspace:GetDescendants()) do
-            applyHighlight(child)
+         -- 1. Scan isi Workspace utama saat ini
+         for _, child in pairs(workspace:GetChildren()) do
+            applyESP(child)
          end
 
-         -- 2. Pantau jika ada objek baru yang masuk ke workspace
-         _G.GlobalEnemyConnection = workspace.DescendantAdded:Connect(function(child)
-            if _G.GataGruntsESP then 
-               applyHighlight(child) 
+         -- 2. Scan langsung ke dalam folder spesifik Section2 (Floor 1-3)
+         local Section2 = workspace:FindFirstChild("Section2")
+         if Section2 then
+            for i = 1, 3 do
+               local floor = Section2:FindFirstChild("Floor" .. i)
+               local monsterFolder = floor and floor:FindFirstChild("Monster")
+               if monsterFolder then
+                  for _, monster in pairs(monsterFolder:GetChildren()) do
+                     applyESP(monster)
+                  end
+               end
+            end
+         end
+      else
+         removeESP()
+      end
+   end,
+})
+
+-- Toggle untuk Deteksi Jarak Musuh Spesifik (Versi Anti-Lag / Optimized)
+local ToggleEnemyDistance = Tab:CreateToggle({
+   Name = "Track Enemy Distance",
+   CurrentValue = false,
+   Flag = "EnemyDistanceTrackerFlag", 
+   Callback = function(Value)
+      _G.TrackEnemyDistance = Value
+
+      local Players = game:GetService("Players")
+      local RunService = game:GetService("RunService")
+      local CoreGui = game:GetService("CoreGui")
+      local localPlayer = Players.LocalPlayer
+
+      -- Daftar hitam (Blacklist)
+      local blacklistNames = {
+         ["Gata"] = true, ["Gata2"] = true, ["Grunt1"] = true, 
+         ["Grunt2"] = true, ["Grunt3"] = true, ["AkariSpider"] = true, 
+         ["Muki"] = true, ["Muki2"] = true
+      }
+
+      -- Daftar putih (Whitelist)
+      local whitelistNames = {
+         ["AkariNM"] = true, ["AkariRage"] = true, ["Mizuno"] = true, 
+         ["HogoGuntai"] = true, ["Baigai"] = true, ["AkariRageNM"] = true, 
+         ["MizunoNM"] = true, ["Akari"] = true
+      }
+
+      -- Tempat menyimpan objek musuh aktif (Cache)
+      local activeEnemies = {}
+
+      -- Fungsi mendeteksi & memasukkan objek valid ke cache
+      local function checkAndCache(obj)
+         if whitelistNames[obj.Name] and not blacklistNames[obj.Name] then
+            local enemyPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")) or (obj:IsA("BasePart") and obj)
+            if enemyPart then
+               activeEnemies[obj] = enemyPart
+               
+               -- Jika objek dihapus dari game, buang dari cache
+               obj.AncestryChanged:Connect(function(_, parent)
+                  if not parent then
+                     activeEnemies[obj] = nil
+                  end
+               end)
+            end
+         end
+      end
+
+      -- Bersihkan UI dan Koneksi Lama
+      if CoreGui:FindFirstChild("EnemyDistanceGui") then CoreGui["EnemyDistanceGui"]:Destroy() end
+      if _G.DistanceConnection then _G.DistanceConnection:Disconnect() _G.DistanceConnection = nil end
+      if _G.DistanceInstanceConnection then _G.DistanceInstanceConnection:Disconnect() _G.DistanceInstanceConnection = nil end
+
+      if _G.TrackEnemyDistance then
+         -- Pembuatan UI
+         local gui = Instance.new("ScreenGui")
+         gui.Name = "EnemyDistanceGui"
+         gui.ResetOnSpawn = false
+         gui.Parent = CoreGui
+
+         local textLabel = Instance.new("TextLabel")
+         textLabel.Name = "DistanceLabel"
+         textLabel.Size = UDim2.new(1, 0, 0, 150)
+         textLabel.Position = UDim2.new(0, 0, 0, 40)
+         textLabel.BackgroundTransparency = 1
+         textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+         textLabel.TextSize = 18
+         textLabel.Font = Enum.Font.SourceSansBold
+         textLabel.TextStrokeTransparency = 0
+         textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+         textLabel.TextYAlignment = Enum.TextYAlignment.Top
+         textLabel.Text = "Scanning for targets..."
+         textLabel.Parent = gui
+
+         -- 1. Scan awal isi Workspace (Hanya berjalan SEKALI saat toggle aktif)
+         for _, child in pairs(workspace:GetDescendants()) do
+            checkAndCache(child)
+         end
+
+         -- 2. Pantau jika ada objek musuh baru yang muncul di game secara real-time
+         _G.DistanceInstanceConnection = workspace.DescendantAdded:Connect(function(child)
+            checkAndCache(child)
+         end)
+
+         -- 3. Loop Ringan RenderStepped (Hanya menghitung matematika jarak tanpa memindai ulang)
+         _G.DistanceConnection = RunService.RenderStepped:Connect(function()
+            if not _G.TrackEnemyDistance or not textLabel then 
+               if _G.DistanceConnection then _G.DistanceConnection:Disconnect() end
+               return 
+            end
+
+            local character = localPlayer.Character
+            local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart)
+            
+            if not rootPart then
+               textLabel.Text = "[Distance Tracker] Waiting for character..."
+               return
+            end
+
+            local infoText = ""
+            local foundTarget = false
+
+            -- Loop hanya memutar isi tabel cache (Sangat ringan!)
+            for obj, enemyPart in pairs(activeEnemies) do
+               if enemyPart and enemyPart.Parent then
+                  local distance = (rootPart.Position - enemyPart.Position).Magnitude
+                  infoText = infoText .. string.format("%s: %.1f studs\n", obj.Name, distance)
+                  foundTarget = true
+               else
+                  activeEnemies[obj] = nil -- Bersihkan jika part rusak/hilang
+               end
+            end
+
+            if foundTarget then
+               textLabel.Text = infoText
+            else
+               textLabel.Text = "No target enemies nearby."
             end
          end)
-      else
-         removeHighlight()
       end
    end,
 })
