@@ -81,28 +81,35 @@ end)
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Pengaturan Kecepatan
+local SensitivitasKamera = 0.5 -- Kecepatan naik/turun lewat arah kamera
+local KecepatanTombol = 0.75   -- Kecepatan naik/turun saat menekan E / Q
+
+-- Variabel untuk mengecek status tombol yang sedang ditekan
+local IsPressingE = false
+local IsPressingQ = false
 
 -- Fungsi Sakral untuk Mematikan dan Membersihkan Semuanya Sampai Akar
 local function MatikanScriptTotal(humanoid)
-   -- 1. Putuskan Loop RenderStepped jika sedang berjalan
    if _G.TPConnection then
       _G.TPConnection:Disconnect()
       _G.TPConnection = nil
    end
    
-   -- 2. Hancurkan Platform Invisible jika ada
    if _G.TPPlatform then
       _G.TPPlatform:Destroy()
       _G.TPPlatform = nil
    end
    
-   -- 3. Kembalikan State Humanoid ke Normal agar bisa jatuh/bergerak bebas
    if humanoid then
       humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
       humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-      humanoid:ChangeState(Enum.HumanoidStateType.Freefall) -- Paksa jatuh jika sedang melayang
+      humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
    end
 end
 
@@ -111,66 +118,102 @@ local character = LocalPlayer.Character
 local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 MatikanScriptTotal(humanoid)
 
-local InputKetinggian = Tab:CreateInput({
-   Name = "Teleport Vertikal (+ Lantai Tetap)",
-   CurrentValue = "",
-   PlaceholderText = "Angka untuk TP / Kosongkan untuk hilangkan lantai",
-   RemoveTextAfterFocusLost = false,
-   Flag = "InstantTPPlatformInput",
-   Callback = function(Text)
+-- IMPLEMENTASI TOGGLE FIX (MAJU MUNDUR ACCURATE)
+local Toggle = Tab:CreateToggle({
+   Name = "Fly Platform (Fix Kamera + E/Q)",
+   CurrentValue = false,
+   Flag = "FlyPlatformToggleEQFix", 
+   Callback = function(Value)
       local character = LocalPlayer.Character
       local hrp = character and character:FindFirstChild("HumanoidRootPart")
       local humanoid = character and character:FindFirstChildOfClass("Humanoid")
       
       if not hrp or not humanoid then return end
       
-      -- JIKA INPUT KOSONG -> MATIKAN TOTAL DAN BERSIHKAN SEMUANYA
-      if Text == "" or Text == nil then
+      if not Value then
          MatikanScriptTotal(humanoid)
          return
       end
       
-      -- JIKA INPUT BERUPA ANGKA (Teleport)
-      local Angka = tonumber(Text)
-      if Angka then
-         -- Bersihkan dlu sisa loop sebelumnya sebelum membuat loop baru
-         MatikanScriptTotal(humanoid)
+      MatikanScriptTotal(humanoid)
+      
+      humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+      humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+      humanoid:ChangeState(Enum.HumanoidStateType.Running)
+      
+      _G.TPTargetY = hrp.Position.Y - 3.5
+      
+      _G.TPPlatform = Instance.new("Part")
+      _G.TPPlatform.Name = "InvisibleTPFloor"
+      _G.TPPlatform.Size = Vector3.new(8, 0.5, 8)
+      _G.TPPlatform.Anchored = true
+      _G.TPPlatform.CanCollide = true
+      _G.TPPlatform.Transparency = 1
+      _G.TPPlatform.Parent = workspace
+      
+      -- Loop Utama (RenderStepped)
+      _G.TPConnection = RunService.RenderStepped:Connect(function()
+         if not _G.TPConnection then return end 
          
-         humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
-         humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-         humanoid:ChangeState(Enum.HumanoidStateType.Running)
-         
-         _G.TPTargetY = (hrp.Position.Y + Angka) - 3.5
-         hrp.CFrame = hrp.CFrame + Vector3.new(0, Angka, 0)
-         
-         _G.TPPlatform = Instance.new("Part")
-         _G.TPPlatform.Name = "InvisibleTPFloor"
-         _G.TPPlatform.Size = Vector3.new(8, 0.5, 8)
-         _G.TPPlatform.Anchored = true
-         _G.TPPlatform.CanCollide = true
-         _G.TPPlatform.Transparency = 1
-         _G.TPPlatform.Parent = workspace
-         
-         -- Jalankan loop baru dan simpan di global table (_G)
-         _G.TPConnection = RunService.RenderStepped:Connect(function()
-            -- Proteksi: Jika tiba-tiba objek dihapus di tengah jalan, loop otomatis berhenti sendiri
-            if not _G.TPConnection then return end 
+         if _G.TPPlatform and hrp and humanoid and Camera then
             
-            if _G.TPPlatform and hrp and humanoid then
-               _G.TPPlatform.CFrame = CFrame.new(hrp.Position.X, _G.TPTargetY, hrp.Position.Z)
-               hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+            -- 1. Logika Tombol Manual (Prioritas Utama)
+            if IsPressingE then
+               _G.TPTargetY = _G.TPTargetY + KecepatanTombol
+            elseif IsPressingQ then
+               _G.TPTargetY = _G.TPTargetY - KecepatanTombol
+            
+            -- 2. Logika Kamera Terbimbing (Sudah Di-fix untuk Maju/Mundur)
+            elseif humanoid.MoveDirection.Magnitude > 0 then
+               local ArahKameraY = Camera.CFrame.LookVector.Y
                
-               if humanoid:GetState() ~= Enum.HumanoidStateType.Running then
-                  humanoid:ChangeState(Enum.HumanoidStateType.Running)
-               end
-            else
-               -- Jika salah satu object hilang (misal mati/reset), matikan loop-nya
-               MatikanScriptTotal(humanoid)
+               -- Menghitung apakah player jalan searah kamera (Maju = 1) atau berlawanan (Mundur = -1)
+               local ArahJalanKarakter = humanoid.MoveDirection:Dot(Camera.CFrame.LookVector)
+               
+               -- Ambil tanda arahnya saja (Positif jika maju/serong depan, Negatif jika mundur/serong belakang)
+               local MultiplierArah = ArahJalanKarakter > 0 and 1 or (ArahJalanKarakter < 0 and -1 or 0)
+               
+               -- Rumus Kalkulasi Tinggi Baru yang Akurat
+               _G.TPTargetY = _G.TPTargetY + (ArahKameraY * SensitivitasKamera * MultiplierArah)
             end
-         end)
-      end
-   end
+            
+            -- Sinkronisasi Posisi Platform & Karakter
+            _G.TPPlatform.CFrame = CFrame.new(hrp.Position.X, _G.TPTargetY, hrp.Position.Z)
+            hrp.CFrame = CFrame.new(hrp.Position.X, _G.TPTargetY + 3.5, hrp.Position.Z)
+            
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+            
+            if humanoid:GetState() ~= Enum.HumanoidStateType.Running then
+               humanoid:ChangeState(Enum.HumanoidStateType.Running)
+            end
+         else
+            MatikanScriptTotal(humanoid)
+         end
+      end)
+   end,
 })
+
+--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+-- DETEKSI INPUT KEYBOARD (E & Q)
+-- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+   if gameProcessedEvent then return end
+   
+   if input.KeyCode == Enum.KeyCode.E then
+      IsPressingE = true
+   elseif input.KeyCode == Enum.KeyCode.Q then
+      IsPressingQ = true
+   end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+   if input.KeyCode == Enum.KeyCode.E then
+      IsPressingE = false
+   elseif input.KeyCode == Enum.KeyCode.Q then
+      IsPressingQ = false
+   end
+end)
 
 local Toggle = Tab:CreateToggle({
    Name = "ESP YenCoin",
