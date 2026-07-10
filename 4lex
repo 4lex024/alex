@@ -322,7 +322,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
                   selectionBox.Parent = box
                end
             end
-         -- UNTUK MUSUH LAINNYA (Termasuk MizunoNM -> Menggunakan Highlight)
+         -- UNTUK MUSUH LAINNYA (Highlight)
          else
             if not obj:FindFirstChild("EnemyHighlight") then
                local highlight = Instance.new("Highlight")
@@ -409,7 +409,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
          -- SECTION 3
          local Section3 = workspace:FindFirstChild("Section3")
          if Section3 then
-            watchFolder(Section3, "Monster") -- Mengawasi folder Monster untuk MizunoNM
+            watchFolder(Section3, "Monster")
             watchFolder(Section3, "SkillCheckMonster")
          end
 
@@ -422,6 +422,16 @@ local ToggleGataGrunts = Tab:CreateToggle({
             watchFolder(Section4, "Monster4")
             watchFolder(Section4, "BossMonster")
             
+            -- Jalur khusus Lab -> Floor1 -> Objective2 -> MukiSpawn (Muki & Muki2)
+            task.spawn(function()
+               local Lab = Section4:WaitForChild("Lab", 5)
+               local Floor1 = Lab and Lab:WaitForChild("Floor1", 5)
+               local Objective2 = Floor1 and Floor1:WaitForChild("Objective2", 5)
+               if Objective2 then
+                  watchFolder(Objective2, "MukiSpawn")
+               end
+            end)
+
             task.spawn(function()
                local WeakPoints = Section4:WaitForChild("WeakPoints", 5)
                if WeakPoints then watchFolder(WeakPoints, "Points") end
