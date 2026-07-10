@@ -378,12 +378,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
       end
 
       if _G.GataGruntsESP then
-         -- 1. Scan isi Workspace utama saat ini
-         for _, child in pairs(workspace:GetChildren()) do
-            applyESP(child)
-         end
-
-         -- 2. Scan langsung ke dalam folder spesifik Section2 (Floor 1-3)
+         -- 1. Scan langsung ke dalam folder spesifik Section2 (Floor 1-3)
          local Section2 = workspace:FindFirstChild("Section2")
          if Section2 then
             for i = 1, 3 do
@@ -397,7 +392,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
             end
          end
 
-         -- 3. Scan langsung ke dalam folder spesifik Section3
+         -- 2. Scan langsung ke dalam folder spesifik Section3
          local Section3 = workspace:FindFirstChild("Section3")
          if Section3 then
             local MonsterFolder3 = Section3:FindFirstChild("Monster")
@@ -415,7 +410,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
             end
          end
 
-         -- 4. Scan langsung ke dalam folder spesifik Section4 (Termasuk Boss & WeakPoints)
+         -- 3. Scan langsung ke dalam folder spesifik Section4 (Termasuk Boss & WeakPoints)
          local Section4 = workspace:FindFirstChild("Section4")
          if Section4 then
             -- Scan Monster 1 sampai 4
@@ -439,7 +434,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
                end
             end
 
-            -- Scan WeakPoints -> Points (EnzukaiWeakPoint - Mendukung banyak objek sekaligus)
+            -- Scan WeakPoints -> Points (EnzukaiWeakPoint)
             local WeakPoints = Section4:FindFirstChild("WeakPoints")
             local PointsFolder = WeakPoints and WeakPoints:FindFirstChild("Points")
             if PointsFolder then
