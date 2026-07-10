@@ -73,12 +73,12 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Pengaturan Kecepatan (Silakan naikkan angka ini jika dirasa kurang cepat)
+-- Pengaturan Kecepatan
 local SensitivitasKamera = 1.0  -- Kecepatan naik/turun lewat hadapan kamera + jalan
-local KecepatanTombol = 1.5     -- Kecepatan naik/turun saat tekan E / Q
+local KecepatanTombol = 1.5     -- Kecepatan naik/turun saat tekan T / Q
 
--- Variabel status tombol
-local IsPressingE = false
+-- Variabel status tombol (E diganti ke T)
+local IsPressingT = false
 local IsPressingQ = false
 
 -- Fungsi Pembersih Total
@@ -107,9 +107,9 @@ MatikanScriptTotal(humanoid)
 
 -- IMPLEMENTASI TOGGLE FIX (RESPONSIF + ANTI-GETAR)
 local Toggle = Tab:CreateToggle({
-   Name = "Fly Platform (Fix Kamera + E/Q)",
+   Name = "Fly Platform (Fix Kamera + T/Q)",
    CurrentValue = false,
-   Flag = "FlyPlatformToggleEQFix", 
+   Flag = "FlyPlatformToggleTQFix", 
    Callback = function(Value)
       local character = LocalPlayer.Character
       local hrp = character and character:FindFirstChild("HumanoidRootPart")
@@ -133,20 +133,19 @@ local Toggle = Tab:CreateToggle({
       
       _G.TPPlatform = Instance.new("Part")
       _G.TPPlatform.Name = "InvisibleTPFloor"
-      _G.TPPlatform.Size = Vector3.new(15, 0.5, 15) -- Diperbesar sedikit agar pergerakan horizontal aman
+      _G.TPPlatform.Size = Vector3.new(15, 0.5, 15)
       _G.TPPlatform.Anchored = true
       _G.TPPlatform.CanCollide = true
       _G.TPPlatform.Transparency = 1
       _G.TPPlatform.Parent = workspace
       
-      -- Menggunakan Heartbeat agar kalkulasi sinkron setelah kalkulasi fisika Roblox selesai
       _G.TPConnection = RunService.Heartbeat:Connect(function()
          if not _G.TPConnection then return end 
          
          if _G.TPPlatform and hrp and humanoid and Camera then
             
-            -- 1. Logika Tombol Manual (Mendapat Prioritas Utama)
-            if IsPressingE then
+            -- 1. Logika Tombol Manual (T untuk naik, Q untuk turun)
+            if IsPressingT then
                _G.TPTargetY = _G.TPTargetY + KecepatanTombol
             elseif IsPressingQ then
                _G.TPTargetY = _G.TPTargetY - KecepatanTombol
@@ -160,14 +159,10 @@ local Toggle = Tab:CreateToggle({
                _G.TPTargetY = _G.TPTargetY + (ArahKameraY * SensitivitasKamera * MultiplierArah)
             end
             
-            -- SINKRONISASI POSISI AKTIF:
-            -- Geser platform ke koordinat target Y yang baru
+            -- SINKRONISASI POSISI AKTIF
             _G.TPPlatform.CFrame = CFrame.new(hrp.Position.X, _G.TPTargetY, hrp.Position.Z)
-            
-            -- IKAT posisi Y karakter secara paksa di atas platform agar saat turun tidak tertinggal (anti-lambat)
             hrp.CFrame = CFrame.new(hrp.Position.X, _G.TPTargetY + 3.5, hrp.Position.Z)
             
-            -- Netralkan gaya vertikal agar sistem fisika roblox tidak mendeteksi benturan/jatuh
             hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
             
             if humanoid:GetState() ~= Enum.HumanoidStateType.Running then
@@ -181,22 +176,21 @@ local Toggle = Tab:CreateToggle({
 })
 
 --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
--- DETEKSI INPUT KEYBOARD (E & Q) - DI-FIX AGAR TIDAK DIATUR GAME PROCESSED
+-- DETEKSI INPUT KEYBOARD (T & Q)
 --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-   -- Tetap izinkan input berjalan meskipun gameProcessedEvent aktif (kecuali sedang mengetik di Chat)
    if UserInputService:GetFocusedTextBox() then return end
    
-   if input.KeyCode == Enum.KeyCode.E then
-      IsPressingE = true
+   if input.KeyCode == Enum.KeyCode.T then
+      IsPressingT = true
    elseif input.KeyCode == Enum.KeyCode.Q then
       IsPressingQ = true
    end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-   if input.KeyCode == Enum.KeyCode.E then
-      IsPressingE = false
+   if input.KeyCode == Enum.KeyCode.T then
+      IsPressingT = false
    elseif input.KeyCode == Enum.KeyCode.Q then
       IsPressingQ = false
    end
