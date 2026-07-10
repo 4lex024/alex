@@ -1,51 +1,39 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
-local Window = Rayfield:CreateWindow({
-   Name = "Rayfield Example Window",
-   Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
-   LoadingTitle = "Rayfield Interface Suite",
-   LoadingSubtitle = "by Sirius",
-   ShowText = "Rayfield", -- for mobile users to unhide Rayfield, change if you'd like
-   Theme = "Default", -- Check https://docs.sirius.menu/rayfield/configuration/themes
-
-   ToggleUIKeybind = "K", -- The keybind to toggle the UI visibility (string like "K" or Enum.KeyCode)
-
-   DisableRayfieldPrompts = false,
-   DisableBuildWarnings = false, -- Prevents Rayfield from emitting warnings when the script has a version mismatch with the interface.
-
-   -- ScriptID = "sid_xxxxxxxxxxxx", -- Your Script ID from developer.sirius.menu — enables analytics, managed keys, and script hosting
-
-   ConfigurationSaving = {
-      Enabled = true,
-      FolderName = nil, -- Create a custom folder for your hub/game
-      FileName = "Big Hub"
-   },
-
-   Discord = {
-      Enabled = false, -- Prompt the user to join your Discord server if their executor supports it
-      Invite = "noinvitelink", -- The Discord invite code, do not include Discord.gg/. E.g. Discord.gg/ABCD would be ABCD
-      RememberJoins = true -- Set this to false to make them join the Discord every time they load it up
-   },
-
-   KeySystem = false, -- Set this to true to use our key system
-   KeySettings = {
-      Title = "Untitled",
-      Subtitle = "Key System",
-      Note = "No method of obtaining the key is provided", -- Use this to tell the user how to get a key
-      FileName = "Key", -- It is recommended to use something unique, as other scripts using Rayfield may overwrite your key file
-      SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
-      GrabKeyFromSite = false, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
-      Key = {"Hello"} -- List of keys that the system will accept, can be RAW file links (pastebin, github, etc.) or simple strings ("hello", "key22")
-   }
-})
-
-local Tab = Window:CreateTab("Tab Example", 4483362458) -- Title, Image
-
+-- 1. DEKLARASI SERVICES DI ATAS (Cukup Sekali untuk Semua Fitur)
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local CoreGui = game:GetService("CoreGui")
 
--- Variabel untuk menyimpan kecepatan kustom
+local Player = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local Window = Rayfield:CreateWindow({
+   Name = "Rayfield Example Window",
+   Icon = 0,
+   LoadingTitle = "Rayfield Interface Suite",
+   LoadingSubtitle = "by Sirius",
+   ShowText = "Rayfield",
+   Theme = "Default",
+   ToggleUIKeybind = "K",
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil,
+      FileName = "Big Hub"
+   },
+   Discord = { Enabled = false, Invite = "noinvitelink", RememberJoins = true },
+   KeySystem = false
+})
+
+local Tab = Window:CreateTab("Tab Example", 4483362458)
+
+-- =============================================================================
+-- FITUR 1: WALKSPEED SAFE (Menggunakan Heartbeat - Sudah Optimal)
+-- =============================================================================
 getgenv().CustomSpeed = 0 
 
 local Input = Tab:CreateInput({
@@ -59,7 +47,6 @@ local Input = Tab:CreateInput({
    end,
 })
 
--- Loop kontrol kecepatan yang tidak menyentuh properti Humanoid.WalkSpeed
 RunService.Heartbeat:Connect(function()
     if getgenv().CustomSpeed > 0 then
         local Character = Player.Character
@@ -67,45 +54,37 @@ RunService.Heartbeat:Connect(function()
         local Root = Character and Character:FindFirstChild("HumanoidRootPart")
         
         if Humanoid and Root and Humanoid.MoveDirection.Magnitude > 0 then
-            -- Menghitung arah gerak (WASD) dan mengalikan dengan kecepatan kustom
-            -- Ini membuat Anda bergerak secepat angka yang dimasukkan, 
-            -- tapi sistem game tetap menganggap WalkSpeed Anda normal (16)
             Root.AssemblyLinearVelocity = Vector3.new(
                 Humanoid.MoveDirection.X * getgenv().CustomSpeed,
-                Root.AssemblyLinearVelocity.Y, -- Tetap biarkan gravitasi bekerja pada sumbu Y
+                Root.AssemblyLinearVelocity.Y, 
                 Humanoid.MoveDirection.Z * getgenv().CustomSpeed
             )
         end
     end
 end)
 
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
-
--- Pengaturan Kecepatan
-local SensitivitasKamera = 0.5 -- Kecepatan naik/turun lewat arah kamera
-local KecepatanTombol = 0.75   -- Kecepatan naik/turun saat menekan E / Q
-
--- Variabel untuk mengecek status tombol yang sedang ditekan
+-- =============================================================================
+-- FITUR 2 & 4: FLY PLATFORM & TELEPORT VERTIKAL (Optimasi Variabel Lokal)
+-- =============================================================================
+local SensitivitasKamera = 0.5 
+local KecepatanTombol = 0.75   
 local IsPressingE = false
 local IsPressingQ = false
 
--- Fungsi Sakral untuk Mematikan dan Membersihkan Semuanya Sampai Akar
+-- Menggunakan variabel lokal modul, bukan _G untuk performa maksimal
+local TPConnection = nil
+local TPPlatform = nil
+local TPTargetY = 0
+
 local function MatikanScriptTotal(humanoid)
-   if _G.TPConnection then
-      _G.TPConnection:Disconnect()
-      _G.TPConnection = nil
+   if TPConnection then
+      TPConnection:Disconnect()
+      TPConnection = nil
    end
-   
-   if _G.TPPlatform then
-      _G.TPPlatform:Destroy()
-      _G.TPPlatform = nil
+   if TPPlatform then
+      TPPlatform:Destroy()
+      TPPlatform = nil
    end
-   
    if humanoid then
       humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
       humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
@@ -113,74 +92,62 @@ local function MatikanScriptTotal(humanoid)
    end
 end
 
--- Otomatis matikan script versi lama saat kamu klik "Execute" ulang
-local character = LocalPlayer.Character
-local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-MatikanScriptTotal(humanoid)
+-- Deteksi Keyboard E & Q
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+   if gameProcessedEvent then return end
+   if input.KeyCode == Enum.KeyCode.E then IsPressingE = true
+   elseif input.KeyCode == Enum.KeyCode.Q then IsPressingQ = true end
+end)
 
--- IMPLEMENTASI TOGGLE FIX (MAJU MUNDUR ACCURATE)
-local Toggle = Tab:CreateToggle({
+UserInputService.InputEnded:Connect(function(input)
+   if input.KeyCode == Enum.KeyCode.E then IsPressingE = false
+   elseif input.KeyCode == Enum.KeyCode.Q then IsPressingQ = false end
+end)
+
+local ToggleFly = Tab:CreateToggle({
    Name = "Fly Platform (Fix Kamera + E/Q)",
    CurrentValue = false,
    Flag = "FlyPlatformToggleEQFix", 
    Callback = function(Value)
-      local character = LocalPlayer.Character
+      local character = Player.Character
       local hrp = character and character:FindFirstChild("HumanoidRootPart")
       local humanoid = character and character:FindFirstChildOfClass("Humanoid")
       
       if not hrp or not humanoid then return end
-      
-      if not Value then
-         MatikanScriptTotal(humanoid)
-         return
-      end
-      
       MatikanScriptTotal(humanoid)
+      
+      if not Value then return end
       
       humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
       humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
       humanoid:ChangeState(Enum.HumanoidStateType.Running)
       
-      _G.TPTargetY = hrp.Position.Y - 3.5
+      TPTargetY = hrp.Position.Y - 3.5
       
-      _G.TPPlatform = Instance.new("Part")
-      _G.TPPlatform.Name = "InvisibleTPFloor"
-      _G.TPPlatform.Size = Vector3.new(8, 0.5, 8)
-      _G.TPPlatform.Anchored = true
-      _G.TPPlatform.CanCollide = true
-      _G.TPPlatform.Transparency = 1
-      _G.TPPlatform.Parent = workspace
+      TPPlatform = Instance.new("Part")
+      TPPlatform.Name = "InvisibleTPFloor"
+      TPPlatform.Size = Vector3.new(8, 0.5, 8)
+      TPPlatform.Value = true
+      TPPlatform.Anchored = true
+      TPPlatform.CanCollide = true
+      TPPlatform.Transparency = 1
+      TPPlatform.Parent = workspace
       
-      -- Loop Utama (RenderStepped)
-      _G.TPConnection = RunService.RenderStepped:Connect(function()
-         if not _G.TPConnection then return end 
-         
-         if _G.TPPlatform and hrp and humanoid and Camera then
-            
-            -- 1. Logika Tombol Manual (Prioritas Utama)
+      TPConnection = RunService.RenderStepped:Connect(function()
+         if TPPlatform and hrp and humanoid and Camera then
             if IsPressingE then
-               _G.TPTargetY = _G.TPTargetY + KecepatanTombol
+               TPTargetY = TPTargetY + KecepatanTombol
             elseif IsPressingQ then
-               _G.TPTargetY = _G.TPTargetY - KecepatanTombol
-            
-            -- 2. Logika Kamera Terbimbing (Sudah Di-fix untuk Maju/Mundur)
+               TPTargetY = TPTargetY - KecepatanTombol
             elseif humanoid.MoveDirection.Magnitude > 0 then
                local ArahKameraY = Camera.CFrame.LookVector.Y
-               
-               -- Menghitung apakah player jalan searah kamera (Maju = 1) atau berlawanan (Mundur = -1)
                local ArahJalanKarakter = humanoid.MoveDirection:Dot(Camera.CFrame.LookVector)
-               
-               -- Ambil tanda arahnya saja (Positif jika maju/serong depan, Negatif jika mundur/serong belakang)
                local MultiplierArah = ArahJalanKarakter > 0 and 1 or (ArahJalanKarakter < 0 and -1 or 0)
-               
-               -- Rumus Kalkulasi Tinggi Baru yang Akurat
-               _G.TPTargetY = _G.TPTargetY + (ArahKameraY * SensitivitasKamera * MultiplierArah)
+               TPTargetY = TPTargetY + (ArahKameraY * SensitivitasKamera * MultiplierArah)
             end
             
-            -- Sinkronisasi Posisi Platform & Karakter
-            _G.TPPlatform.CFrame = CFrame.new(hrp.Position.X, _G.TPTargetY, hrp.Position.Z)
-            hrp.CFrame = CFrame.new(hrp.Position.X, _G.TPTargetY + 3.5, hrp.Position.Z)
-            
+            TPPlatform.CFrame = CFrame.new(hrp.Position.X, TPTargetY, hrp.Position.Z)
+            hrp.CFrame = CFrame.new(hrp.Position.X, TPTargetY + 3.5, hrp.Position.Z)
             hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
             
             if humanoid:GetState() ~= Enum.HumanoidStateType.Running then
@@ -193,416 +160,6 @@ local Toggle = Tab:CreateToggle({
    end,
 })
 
---- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
--- DETEKSI INPUT KEYBOARD (E & Q)
--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-
-UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-   if gameProcessedEvent then return end
-   
-   if input.KeyCode == Enum.KeyCode.E then
-      IsPressingE = true
-   elseif input.KeyCode == Enum.KeyCode.Q then
-      IsPressingQ = true
-   end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-   if input.KeyCode == Enum.KeyCode.E then
-      IsPressingE = false
-   elseif input.KeyCode == Enum.KeyCode.Q then
-      IsPressingQ = false
-   end
-end)
-
-local Toggle = Tab:CreateToggle({
-   Name = "ESP YenCoin",
-   CurrentValue = false,
-   Flag = "YenCoinESPFlag", 
-   Callback = function(Value)
-      _G.YenCoinESP = Value
-      
-      -- Fungsi untuk membuat Highlight pada YenCoin
-      local function applyHighlight(obj)
-         if obj.Name == "YenCoin" and not obj:FindFirstChild("ESPHighlight") then
-            local highlight = Instance.new("Highlight")
-            highlight.Name = "ESPHighlight"
-            highlight.FillColor = Color3.fromRGB(0, 255, 255) -- Warna Cyan/Biru Muda (bisa diganti)
-            highlight.FillTransparency = 0.5
-            highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- Warna Outline Putih
-            highlight.OutlineTransparency = 0
-            highlight.Parent = obj
-         end
-      end
-
-      -- Fungsi untuk menghapus semua Highlight
-      local function removeHighlight()
-         for _, v in pairs(workspace:GetDescendants()) do
-            if v.Name == "ESPHighlight" then
-               v:Destroy()
-            end
-         end
-      end
-
-      if _G.YenCoinESP then
-         -- Nyalakan ESP untuk objek yang sudah ada di workspace
-         for _, child in pairs(workspace:GetDescendants()) do
-            applyHighlight(child)
-         end
-
-         -- Nyalakan ESP untuk objek baru yang baru muncul (spawn)
-         _G.YenCoinConnection = workspace.DescendantAdded:Connect(function(child)
-            if _G.YenCoinESP then
-               applyHighlight(child)
-            end
-         end)
-      else
-         -- Jika toggle dimatikan, matikan koneksi dan hapus highlight
-         if _G.YenCoinConnection then
-            _G.YenCoinConnection:Disconnect()
-            _G.YenCoinConnection = nil
-         end
-         removeHighlight()
-      end
-   end,
-})
-
--- Toggle Gabungan untuk Enemy (Warna Merah - Campuran Highlight & Box ESP)
-local ToggleGataGrunts = Tab:CreateToggle({
-   Name = "ESP Enemies",
-   CurrentValue = false,
-   Flag = "GataGruntsESPFlag", 
-   Callback = function(Value)
-      _G.GataGruntsESP = Value
-      
-      -- Daftar nama semua objek musuh & titik lemah
-      local targetNames = {
-         ["Gata"] = true, ["Gata2"] = true, ["Grunt1"] = true, ["Grunt2"] = true, ["Grunt3"] = true,
-         ["AkariNM"] = true, ["AkariSpider"] = true, ["AkariRage"] = true, ["Mizuno"] = true,
-         ["Muki"] = true, ["Muki2"] = true, ["HogoGuntai"] = true, ["Baigai"] = true,
-         ["AkariRageNM"] = true, ["MizunoNM"] = true, ["Akari"] = true,
-         ["Tenome"] = true, ["Rin"] = true, ["Tsukiya"] = true, ["Senzai"] = true, ["Kutsu"] = true,
-         ["Enzukai2"] = true, ["Rin2"] = true, ["Tenome2"] = true, ["Tsukiya2"] = true,
-         ["EnzukaiRyu"] = true, ["EnzukaiWeakPoint"] = true
-      }
-
-      if not _G.ESPConnections then _G.ESPConnections = {} end
-
-      local function cleanupConnections()
-         for _, conn in pairs(_G.ESPConnections) do
-            if conn then conn:Disconnect() end
-         end
-         _G.ESPConnections = {}
-      end
-
-      -- Fungsi memasang ESP
-      local function applyESP(obj)
-         if not targetNames[obj.Name] then return end
-         
-         -- KHUSUS AKARI & AKARINM (Box ESP)
-         if obj.Name == "Akari" or obj.Name == "AkariNM" then
-            if not obj:FindFirstChild("EnemyBoxESP") then
-               local mainPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")) or (obj:IsA("BasePart") and obj)
-               if mainPart then
-                  local box = Instance.new("BoxHandleAdornment")
-                  box.Name = "EnemyBoxESP"
-                  box.Size = obj:IsA("Model") and (obj:GetExtentsSize() + Vector3.new(0.2, 0.2, 0.2)) or (mainPart.Size + Vector3.new(0.2, 0.2, 0.2))
-                  box.Color3 = Color3.fromRGB(255, 0, 0)
-                  box.Transparency = 0.6
-                  box.AlwaysOnTop = true
-                  box.ZIndex = 10
-                  box.Adornee = mainPart
-                  box.Parent = obj
-
-                  local selectionBox = Instance.new("SelectionBox")
-                  selectionBox.Name = "EnemyBoxOutline"
-                  selectionBox.Color3 = Color3.fromRGB(255, 255, 255)
-                  selectionBox.LineThickness = 0.05
-                  selectionBox.Adornee = mainPart
-                  selectionBox.Parent = box
-               end
-            end
-         -- UNTUK MUSUH LAINNYA (Termasuk Baigai -> Menggunakan Highlight)
-         else
-            if not obj:FindFirstChild("EnemyHighlight") then
-               local highlight = Instance.new("Highlight")
-               highlight.Name = "EnemyHighlight"
-               highlight.FillColor = Color3.fromRGB(255, 0, 0)
-               highlight.FillTransparency = 0.5
-               highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-               highlight.OutlineTransparency = 0
-               highlight.Parent = obj
-
-               task.spawn(function()
-                  while _G.GataGruntsESP and highlight and highlight.Parent do
-                     if highlight.FillTransparency ~= 0.5 or highlight.OutlineTransparency ~= 0 then
-                        highlight.FillTransparency = 0.5
-                        highlight.OutlineTransparency = 0
-                     end
-                     task.wait(0.5)
-                  end
-               end)
-            end
-         end
-      end
-
-      -- Fungsi hapus ESP
-      local function removeESP()
-         cleanupConnections()
-         for _, v in pairs(workspace:GetDescendants()) do
-            if v.Name == "EnemyHighlight" or v.Name == "EnemyBoxESP" then
-               v:Destroy()
-            end
-         end
-      end
-
-      -- Fungsi mengawasi folder dengan aman dan menunggu jika folder belum ada
-      local function watchFolder(parentPath, folderName)
-         task.spawn(function()
-            local folder = parentPath:WaitForChild(folderName, 5) 
-            if not folder then return end
-            
-            -- Scan musuh yang sudah ada di dalam folder saat ini
-            for _, child in pairs(folder:GetChildren()) do
-               applyESP(child)
-            end
-            
-            -- Deteksi otomatis saat musuh baru masuk ke folder
-            local conn = folder.ChildAdded:Connect(function(child)
-               task.wait(0.1)
-               if _G.GataGruntsESP then
-                  applyESP(child)
-               end
-            end)
-            table.insert(_G.ESPConnections, conn)
-         end)
-      end
-
-      if _G.GataGruntsESP then
-         -- SECTION 1
-         local Section1 = workspace:FindFirstChild("Section1")
-         if Section1 then watchFolder(Section1, "Grunts") end
-
-         -- SECTION 2
-         local Section2 = workspace:FindFirstChild("Section2")
-         if Section2 then
-            watchFolder(Section2, "Grunts")
-            watchFolder(Section2, "Monster")
-            watchFolder(Section2, "Rage")
-            
-            -- Jalur khusus MAINOBJECTIVE2 -> Spiders
-            task.spawn(function()
-               local MainObjective2 = Section2:WaitForChild("MAINOBJECTIVE2", 5)
-               if MainObjective2 then
-                  watchFolder(MainObjective2, "Spiders")
-               end
-            end)
-            
-            task.spawn(function()
-               for i = 1, 3 do
-                  local floor = Section2:WaitForChild("Floor" .. i, 5)
-                  if floor then watchFolder(floor, "Monster") end
-               end
-            end)
-         end
-
-         -- SECTION 3
-         local Section3 = workspace:FindFirstChild("Section3")
-         if Section3 then
-            watchFolder(Section3, "Monster")
-            watchFolder(Section3, "SkillCheckMonster")
-         end
-
-         -- SECTION 4
-         local Section4 = workspace:FindFirstChild("Section4")
-         if Section4 then
-            watchFolder(Section4, "Monster")
-            watchFolder(Section4, "Monster2")
-            watchFolder(Section4, "Monster3")
-            watchFolder(Section4, "Monster4")
-            watchFolder(Section4, "BossMonster")
-            
-            -- Jalur khusus Lab -> Floor1 -> Objective2 -> MukiSpawn (Muki & Muki2)
-            task.spawn(function()
-               local Lab = Section4:WaitForChild("Lab", 5)
-               local Floor1 = Lab and Lab:WaitForChild("Floor1", 5)
-               local Objective2 = Floor1 and Floor1:WaitForChild("Objective2", 5)
-               if Objective2 then
-                  watchFolder(Objective2, "MukiSpawn")
-               end
-            end)
-
-            task.spawn(function()
-               local WeakPoints = Section4:WaitForChild("WeakPoints", 5)
-               if WeakPoints then watchFolder(WeakPoints, "Points") end
-            end)
-         end
-
-         -- SECTION 5
-         local Section5 = workspace:FindFirstChild("Section5")
-         if Section5 then
-            watchFolder(Section5, "Monster") -- Mengawasi folder Monster untuk Baigai
-         end
-      else
-         removeESP()
-      end
-   end,
-})
-
--- Toggle untuk Deteksi Jarak Musuh Spesifik (Versi Anti-Lag / Optimized)
-local ToggleEnemyDistance = Tab:CreateToggle({
-   Name = "Track Enemy Distance",
-   CurrentValue = false,
-   Flag = "EnemyDistanceTrackerFlag", 
-   Callback = function(Value)
-      _G.TrackEnemyDistance = Value
-
-      local Players = game:GetService("Players")
-      local RunService = game:GetService("RunService")
-      local CoreGui = game:GetService("CoreGui")
-      local localPlayer = Players.LocalPlayer
-
-      -- Daftar hitam (Blacklist)
-      local blacklistNames = {
-         ["Gata"] = true, ["Gata2"] = true, ["Grunt1"] = true, 
-         ["Grunt2"] = true, ["Grunt3"] = true, ["AkariSpider"] = true, 
-         ["Muki"] = true, ["Muki2"] = true
-      }
-
-      -- Daftar putih (Whitelist)
-      local whitelistNames = {
-         ["AkariNM"] = true, ["AkariRage"] = true, ["Mizuno"] = true, 
-         ["HogoGuntai"] = true, ["Baigai"] = true, ["AkariRageNM"] = true, 
-         ["Kutsu"] = true, ["Senzai"] = true, ["MizunoNM"] = true, ["Akari"] = true
-      }
-
-      -- Tempat menyimpan objek musuh aktif (Cache)
-      local activeEnemies = {}
-
-      -- Fungsi mendeteksi & memasukkan objek valid ke cache
-      local function checkAndCache(obj)
-         if whitelistNames[obj.Name] and not blacklistNames[obj.Name] then
-            local enemyPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")) or (obj:IsA("BasePart") and obj)
-            if enemyPart then
-               activeEnemies[obj] = enemyPart
-               
-               -- Jika objek dihapus dari game, buang dari cache
-               obj.AncestryChanged:Connect(function(_, parent)
-                  if not parent then
-                     activeEnemies[obj] = nil
-                  end
-               end)
-            end
-         end
-      end
-
-      -- Bersihkan UI dan Koneksi Lama
-      if CoreGui:FindFirstChild("EnemyDistanceGui") then CoreGui["EnemyDistanceGui"]:Destroy() end
-      if _G.DistanceConnection then _G.DistanceConnection:Disconnect() _G.DistanceConnection = nil end
-      if _G.DistanceInstanceConnection then _G.DistanceInstanceConnection:Disconnect() _G.DistanceInstanceConnection = nil end
-
-      if _G.TrackEnemyDistance then
-         -- Pembuatan UI
-         local gui = Instance.new("ScreenGui")
-         gui.Name = "EnemyDistanceGui"
-         gui.ResetOnSpawn = false
-         gui.Parent = CoreGui
-
-         local textLabel = Instance.new("TextLabel")
-         textLabel.Name = "DistanceLabel"
-         textLabel.Size = UDim2.new(1, 0, 0, 150)
-         textLabel.Position = UDim2.new(0, 0, 0, 40)
-         textLabel.BackgroundTransparency = 1
-         textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-         textLabel.TextSize = 18
-         textLabel.Font = Enum.Font.SourceSansBold
-         textLabel.TextStrokeTransparency = 0
-         textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-         textLabel.TextYAlignment = Enum.TextYAlignment.Top
-         textLabel.Text = "Scanning for targets..."
-         textLabel.Parent = gui
-
-         -- 1. Scan awal isi Workspace (Hanya berjalan SEKALI saat toggle aktif)
-         for _, child in pairs(workspace:GetDescendants()) do
-            checkAndCache(child)
-         end
-
-         -- 2. Pantau jika ada objek musuh baru yang muncul di game secara real-time
-         _G.DistanceInstanceConnection = workspace.DescendantAdded:Connect(function(child)
-            checkAndCache(child)
-         end)
-
-         -- 3. Loop Ringan RenderStepped (Hanya menghitung matematika jarak tanpa memindai ulang)
-         _G.DistanceConnection = RunService.RenderStepped:Connect(function()
-            if not _G.TrackEnemyDistance or not textLabel then 
-               if _G.DistanceConnection then _G.DistanceConnection:Disconnect() end
-               return 
-            end
-
-            local character = localPlayer.Character
-            local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart)
-            
-            if not rootPart then
-               textLabel.Text = "[Distance Tracker] Waiting for character..."
-               return
-            end
-
-            local infoText = ""
-            local foundTarget = false
-
-            -- Loop hanya memutar isi tabel cache (Sangat ringan!)
-            for obj, enemyPart in pairs(activeEnemies) do
-               if enemyPart and enemyPart.Parent then
-                  local distance = (rootPart.Position - enemyPart.Position).Magnitude
-                  infoText = infoText .. string.format("%s: %.1f studs\n", obj.Name, distance)
-                  foundTarget = true
-               else
-                  activeEnemies[obj] = nil -- Bersihkan jika part rusak/hilang
-               end
-            end
-
-            if foundTarget then
-               textLabel.Text = infoText
-            else
-               textLabel.Text = "No target enemies nearby."
-            end
-         end)
-      end
-   end,
-})
-
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-
-local LocalPlayer = Players.LocalPlayer
-
--- Fungsi Sakral untuk Mematikan dan Membersihkan Semuanya Sampai Akar
-local function MatikanScriptTotal(humanoid)
-   -- 1. Putuskan Loop RenderStepped jika sedang berjalan
-   if _G.TPConnection then
-      _G.TPConnection:Disconnect()
-      _G.TPConnection = nil
-   end
-   
-   -- 2. Hancurkan Platform Invisible jika ada
-   if _G.TPPlatform then
-      _G.TPPlatform:Destroy()
-      _G.TPPlatform = nil
-   end
-   
-   -- 3. Kembalikan State Humanoid ke Normal agar bisa jatuh/bergerak bebas
-   if humanoid then
-      humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
-      humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-      humanoid:ChangeState(Enum.HumanoidStateType.Freefall) -- Paksa jatuh jika sedang melayang
-   end
-end
-
--- Otomatis matikan script versi lama saat kamu klik "Execute" ulang
-local character = LocalPlayer.Character
-local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-MatikanScriptTotal(humanoid)
-
 local InputKetinggian = Tab:CreateInput({
    Name = "Teleport Vertikal (+ Lantai Tetap)",
    CurrentValue = "",
@@ -610,53 +167,40 @@ local InputKetinggian = Tab:CreateInput({
    RemoveTextAfterFocusLost = false,
    Flag = "InstantTPPlatformInput",
    Callback = function(Text)
-      local character = LocalPlayer.Character
+      local character = Player.Character
       local hrp = character and character:FindFirstChild("HumanoidRootPart")
       local humanoid = character and character:FindFirstChildOfClass("Humanoid")
       
       if not hrp or not humanoid then return end
+      if Text == "" or Text == nil then MatikanScriptTotal(humanoid) return end
       
-      -- JIKA INPUT KOSONG -> MATIKAN TOTAL DAN BERSIHKAN SEMUANYA
-      if Text == "" or Text == nil then
-         MatikanScriptTotal(humanoid)
-         return
-      end
-      
-      -- JIKA INPUT BERUPA ANGKA (Teleport)
       local Angka = tonumber(Text)
       if Angka then
-         -- Bersihkan dlu sisa loop sebelumnya sebelum membuat loop baru
          MatikanScriptTotal(humanoid)
          
          humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
          humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
          humanoid:ChangeState(Enum.HumanoidStateType.Running)
          
-         _G.TPTargetY = (hrp.Position.Y + Angka) - 3.5
+         TPTargetY = (hrp.Position.Y + Angka) - 3.5
          hrp.CFrame = hrp.CFrame + Vector3.new(0, Angka, 0)
          
-         _G.TPPlatform = Instance.new("Part")
-         _G.TPPlatform.Name = "InvisibleTPFloor"
-         _G.TPPlatform.Size = Vector3.new(8, 0.5, 8)
-         _G.TPPlatform.Anchored = true
-         _G.TPPlatform.CanCollide = true
-         _G.TPPlatform.Transparency = 1
-         _G.TPPlatform.Parent = workspace
+         TPPlatform = Instance.new("Part")
+         TPPlatform.Name = "InvisibleTPFloor"
+         TPPlatform.Size = Vector3.new(8, 0.5, 8)
+         TPPlatform.Anchored = true
+         TPPlatform.CanCollide = true
+         TPPlatform.Transparency = 1
+         TPPlatform.Parent = workspace
          
-         -- Jalankan loop baru dan simpan di global table (_G)
-         _G.TPConnection = RunService.RenderStepped:Connect(function()
-            -- Proteksi: Jika tiba-tiba objek dihapus di tengah jalan, loop otomatis berhenti sendiri
-            if not _G.TPConnection then return end 
-            
-            if _G.TPPlatform and hrp and humanoid then
-               _G.TPPlatform.CFrame = CFrame.new(hrp.Position.X, _G.TPTargetY, hrp.Position.Z)
+         TPConnection = RunService.RenderStepped:Connect(function()
+            if TPPlatform and hrp and humanoid then
+               TPPlatform.CFrame = CFrame.new(hrp.Position.X, TPTargetY, hrp.Position.Z)
                hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
-               
                if humanoid:GetState() ~= Enum.HumanoidStateType.Running then
                   humanoid:ChangeState(Enum.HumanoidStateType.Running)
                end
             else
-               -- Jika salah satu object hilang (misal mati/reset), matikan loop-nya
                MatikanScriptTotal(humanoid)
             end
          end)
@@ -664,59 +208,225 @@ local InputKetinggian = Tab:CreateInput({
    end
 })
 
-local Lighting = game:GetService("Lighting")
-local RunService = game:GetService("RunService")
+-- =============================================================================
+-- FITUR 3: ESP YEN COIN & ENEMIES (Sistem Otomatis & Caching Ringan)
+-- =============================================================================
+local YenCoinConnection = nil
+local function applyYenHighlight(obj)
+   if obj.Name == "YenCoin" and not obj:FindFirstChild("ESPHighlight") then
+      local highlight = Instance.new("Highlight")
+      highlight.Name = "ESPHighlight"
+      highlight.FillColor = Color3.fromRGB(0, 255, 255)
+      highlight.FillTransparency = 0.5
+      highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+      highlight.Parent = obj
+   end
+end
 
--- Menyimpan pengaturan asli game agar bisa dikembalikan saat toggle OFF
+local ToggleYen = Tab:CreateToggle({
+   Name = "ESP YenCoin",
+   CurrentValue = false,
+   Flag = "YenCoinESPFlag", 
+   Callback = function(Value)
+      if Value then
+         for _, child in pairs(workspace:GetDescendants()) do applyYenHighlight(child) end
+         YenCoinConnection = workspace.DescendantAdded:Connect(applyYenHighlight)
+      else
+         if YenCoinConnection then YenCoinConnection:Disconnect() YenCoinConnection = nil end
+         for _, v in pairs(workspace:GetDescendants()) do
+            if v.Name == "ESPHighlight" then v:Destroy() end
+         end
+      end
+   end,
+})
+
+-- ESP Enemies
+local GataGruntsESP = false
+local ESPConnections = {}
+local targetNames = {
+   ["Gata"] = true, ["Gata2"] = true, ["Grunt1"] = true, ["Grunt2"] = true, ["Grunt3"] = true,
+   ["AkariNM"] = true, ["AkariSpider"] = true, ["AkariRage"] = true, ["Mizuno"] = true,
+   ["Muki"] = true, ["Muki2"] = true, ["HogoGuntai"] = true, ["Baigai"] = true,
+   ["AkariRageNM"] = true, ["MizunoNM"] = true, ["Akari"] = true,
+   ["Tenome"] = true, ["Rin"] = true, ["Tsukiya"] = true, ["Senzai"] = true, ["Kutsu"] = true,
+   ["Enzukai2"] = true, ["Rin2"] = true, ["Tenome2"] = true, ["Tsukiya2"] = true,
+   ["EnzukaiRyu"] = true, ["EnzukaiWeakPoint"] = true
+}
+
+local function applyEnemyESP(obj)
+   if not GataGruntsESP or not targetNames[obj.Name] then return end
+   if obj.Name == "Akari" or obj.Name == "AkariNM" then
+      if not obj:FindFirstChild("EnemyBoxESP") then
+         local mainPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")) or (obj:IsA("BasePart") and obj)
+         if mainPart then
+            local box = Instance.new("BoxHandleAdornment")
+            box.Name = "EnemyBoxESP"
+            box.Size = obj:IsA("Model") and (obj:GetExtentsSize() + Vector3.new(0.2, 0.2, 0.2)) or (mainPart.Size + Vector3.new(0.2, 0.2, 0.2))
+            box.Color3 = Color3.fromRGB(255, 0, 0)
+            box.Transparency = 0.6
+            box.AlwaysOnTop = true
+            box.Adornee = mainPart
+            box.Parent = obj
+
+            local selectionBox = Instance.new("SelectionBox")
+            selectionBox.Name = "EnemyBoxOutline"
+            selectionBox.Color3 = Color3.fromRGB(255, 255, 255)
+            selectionBox.LineThickness = 0.05
+            selectionBox.Adornee = mainPart
+            selectionBox.Parent = box
+         end
+      end
+   else
+      if not obj:FindFirstChild("EnemyHighlight") then
+         local highlight = Instance.new("Highlight")
+         highlight.Name = "EnemyHighlight"
+         highlight.FillColor = Color3.fromRGB(255, 0, 0)
+         highlight.FillTransparency = 0.5
+         highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+         highlight.Parent = obj
+      end
+   end
+end
+
+local ToggleEnemies = Tab:CreateToggle({
+   Name = "ESP Enemies",
+   CurrentValue = false,
+   Flag = "GataGruntsESPFlag", 
+   Callback = function(Value)
+      GataGruntsESP = Value
+      if Value then
+         for _, v in pairs(workspace:GetDescendants()) do applyEnemyESP(v) end
+         local conn = workspace.DescendantAdded:Connect(function(child)
+            task.wait(0.1)
+            applyEnemyESP(child)
+         end)
+         table.insert(ESPConnections, conn)
+      else
+         for _, conn in pairs(ESPConnections) do if conn then conn:Disconnect() end end
+         ESPConnections = {}
+         for _, v in pairs(workspace:GetDescendants()) do
+            if v.Name == "EnemyHighlight" or v.Name == "EnemyBoxESP" then v:Destroy() end
+         end
+      end
+   end,
+})
+
+-- Track Enemy Distance (Optimized)
+local TrackEnemyDistance = false
+local DistanceConnection = nil
+local DistanceInstanceConnection = nil
+local activeEnemies = {}
+
+local whitelistNames = {
+   ["AkariNM"] = true, ["AkariRage"] = true, ["Mizuno"] = true, 
+   ["HogoGuntai"] = true, ["Baigai"] = true, ["AkariRageNM"] = true, 
+   ["Kutsu"] = true, ["Senzai"] = true, ["MizunoNM"] = true, ["Akari"] = true
+}
+
+local function checkAndCache(obj)
+   if whitelistNames[obj.Name] then
+      local enemyPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")) or (obj:IsA("BasePart") and obj)
+      if enemyPart then
+         activeEnemies[obj] = enemyPart
+      end
+   end
+end
+
+local ToggleDistance = Tab:CreateToggle({
+   Name = "Track Enemy Distance",
+   CurrentValue = false,
+   Flag = "EnemyDistanceTrackerFlag", 
+   Callback = function(Value)
+      TrackEnemyDistance = Value
+      if CoreGui:FindFirstChild("EnemyDistanceGui") then CoreGui["EnemyDistanceGui"]:Destroy() end
+      if DistanceConnection then DistanceConnection:Disconnect() DistanceConnection = nil end
+      if DistanceInstanceConnection then DistanceInstanceConnection:Disconnect() DistanceInstanceConnection = nil end
+
+      if TrackEnemyDistance then
+         local gui = Instance.new("ScreenGui", CoreGui)
+         gui.Name = "EnemyDistanceGui"
+         
+         local textLabel = Instance.new("TextLabel", gui)
+         textLabel.Size = UDim2.new(1, 0, 0, 150)
+         textLabel.Position = UDim2.new(0, 0, 0, 40)
+         textLabel.BackgroundTransparency = 1
+         textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+         textLabel.TextSize = 18
+         textLabel.Font = Enum.Font.SourceSansBold
+         textLabel.TextStrokeTransparency = 0
+         textLabel.TextYAlignment = Enum.TextYAlignment.Top
+         textLabel.Text = "Scanning..."
+
+         table.clear(activeEnemies)
+         for _, child in pairs(workspace:GetDescendants()) do checkAndCache(child) end
+         DistanceInstanceConnection = workspace.DescendantAdded:Connect(checkAndCache)
+
+         DistanceConnection = RunService.Heartbeat:Connect(function()
+            local character = Player.Character
+            local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+            if not rootPart then textLabel.Text = "Waiting for character..." return end
+
+            local infoText = ""
+            local found = false
+            for obj, enemyPart in pairs(activeEnemies) do
+               if enemyPart and enemyPart.Parent then
+                  local distance = (rootPart.Position - enemyPart.Position).Magnitude
+                  infoText = infoText .. string.format("%s: %.1f studs\n", obj.Name, distance)
+                  found = true
+               else
+                  activeEnemies[obj] = nil
+               end
+            end
+            textLabel.Text = found and infoText or "No target enemies nearby."
+         end)
+      end
+   end,
+})
+
+-- =============================================================================
+-- FITUR 5: FULLBRIGHT & NO FOG (ANTI-LAG RE-DESIGNED)
+-- =============================================================================
 local OriginalAmbient = Lighting.Ambient
 local OriginalOutdoorAmbient = Lighting.OutdoorAmbient
 local OriginalClockTime = Lighting.ClockTime
 local OriginalFogStart = Lighting.FogStart
 local OriginalFogEnd = Lighting.FogEnd
 
-local FullbrightConnection = nil
+local FullbrightActive = false
+local LightingChangedConn = nil
 
-local Toggle = Tab:CreateToggle({
+local function SetFullbright()
+   Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+   Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+   Lighting.ClockTime = 14
+   Lighting.FogStart = 9e9
+   Lighting.FogEnd = 9e9
+   local Atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+   if Atmosphere then Atmosphere.Density = 0 end
+end
+
+local ToggleFullbright = Tab:CreateToggle({
    Name = "Fullbright & No Fog",
    CurrentValue = false,
-   Flag = "FullbrightNoFogToggle", -- Flag unik agar tidak bentrok
+   Flag = "FullbrightNoFogToggle", 
    Callback = function(Value)
+      FullbrightActive = Value
+      if LightingChangedConn then LightingChangedConn:Disconnect() LightingChangedConn = nil end
+      
       if Value then
-         -- [ AKTIFKAN FULLBRIGHT & NO FOG ]
-         -- Loop dijalankan terus-menerus agar game tidak bisa memaksa gelap kembali
-         FullbrightConnection = RunService.RenderStepped:Connect(function()
-            Lighting.Ambient = Color3.fromRGB(255, 255, 255)
-            Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
-            Lighting.ClockTime = 14
-            
-            -- Menghilangkan Kabut (Fog)
-            Lighting.FogStart = 9e9
-            Lighting.FogEnd = 9e9
-            
-            -- Menghilangkan efek kabut modern (Atmosphere) jika ada di game tersebut
-            local Atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
-            if Atmosphere then
-               Atmosphere.Density = 0
-            end
+         SetFullbright()
+         -- Alih-alih memakai RenderStepped, kita mendengarkan perubahan properti (Jauh lebih hemat CPU!)
+         LightingChangedConn = Lighting.Changed:Connect(function()
+            if FullbrightActive then SetFullbright() end
          end)
       else
-         -- [ MATIKAN & KEMBALIKAN KE NORMAL ]
-         if FullbrightConnection then
-            FullbrightConnection:Disconnect()
-            FullbrightConnection = nil
-         end
-         
-         -- Kembalikan settingan pencahayaan asli bawaan game
          Lighting.Ambient = OriginalAmbient
          Lighting.OutdoorAmbient = OriginalOutdoorAmbient
          Lighting.ClockTime = OriginalClockTime
          Lighting.FogStart = OriginalFogStart
          Lighting.FogEnd = OriginalFogEnd
-         
          local Atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
-         if Atmosphere then
-            Atmosphere.Density = 0.3 -- Nilai rata-rata density atmosphere normal game
-         end
+         if Atmosphere then Atmosphere.Density = 0.3 end
       end
    end,
 })
