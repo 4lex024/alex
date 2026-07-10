@@ -359,7 +359,6 @@ local ToggleGataGrunts = Tab:CreateToggle({
       -- Fungsi mengawasi folder dengan aman dan menunggu jika folder belum ada
       local function watchFolder(parentPath, folderName)
          task.spawn(function()
-            -- Menunggu folder muncul jika belum di-render oleh game (anti-error & anti-skip)
             local folder = parentPath:WaitForChild(folderName, 5) 
             if not folder then return end
             
@@ -380,8 +379,6 @@ local ToggleGataGrunts = Tab:CreateToggle({
       end
 
       if _G.GataGruntsESP then
-         -- SCRIPT MEMULAI PENGAWASAN KETAT (Aman & 0% Lag)
-         
          -- SECTION 1
          local Section1 = workspace:FindFirstChild("Section1")
          if Section1 then watchFolder(Section1, "Grunts") end
@@ -390,6 +387,8 @@ local ToggleGataGrunts = Tab:CreateToggle({
          local Section2 = workspace:FindFirstChild("Section2")
          if Section2 then
             watchFolder(Section2, "Grunts")
+            watchFolder(Section2, "Monster") -- Menambahkan workspace.Section2.Monster langsung di sini
+            
             task.spawn(function()
                for i = 1, 3 do
                   local floor = Section2:WaitForChild("Floor" .. i, 5)
