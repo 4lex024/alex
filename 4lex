@@ -322,7 +322,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
                   selectionBox.Parent = box
                end
             end
-         -- UNTUK MUSUH LAINNYA (Termasuk HogoGuntai -> Menggunakan Highlight)
+         -- UNTUK MUSUH LAINNYA (Termasuk Baigai -> Menggunakan Highlight)
          else
             if not obj:FindFirstChild("EnemyHighlight") then
                local highlight = Instance.new("Highlight")
@@ -416,7 +416,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
          -- SECTION 4
          local Section4 = workspace:FindFirstChild("Section4")
          if Section4 then
-            watchFolder(Section4, "Monster") -- Mengawasi folder Monster untuk HogoGuntai & Enzukai2
+            watchFolder(Section4, "Monster")
             watchFolder(Section4, "Monster2")
             watchFolder(Section4, "Monster3")
             watchFolder(Section4, "Monster4")
@@ -436,6 +436,12 @@ local ToggleGataGrunts = Tab:CreateToggle({
                local WeakPoints = Section4:WaitForChild("WeakPoints", 5)
                if WeakPoints then watchFolder(WeakPoints, "Points") end
             end)
+         end
+
+         -- SECTION 5
+         local Section5 = workspace:FindFirstChild("Section5")
+         if Section5 then
+            watchFolder(Section5, "Monster") -- Mengawasi folder Monster untuk Baigai
          end
       else
          removeESP()
