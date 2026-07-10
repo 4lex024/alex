@@ -322,7 +322,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
                   selectionBox.Parent = box
                end
             end
-         -- UNTUK MUSUH LAINNYA (Termasuk AkariRageNM -> Menggunakan Highlight)
+         -- UNTUK MUSUH LAINNYA (Termasuk MizunoNM -> Menggunakan Highlight)
          else
             if not obj:FindFirstChild("EnemyHighlight") then
                local highlight = Instance.new("Highlight")
@@ -388,9 +388,9 @@ local ToggleGataGrunts = Tab:CreateToggle({
          if Section2 then
             watchFolder(Section2, "Grunts")
             watchFolder(Section2, "Monster")
-            watchFolder(Section2, "Rage") -- Jalur Baru untuk AkariRageNM
+            watchFolder(Section2, "Rage")
             
-            -- Jalur khusus MAINOBJECTIVE2 -> Spiders (Tempat AkariSpider)
+            -- Jalur khusus MAINOBJECTIVE2 -> Spiders
             task.spawn(function()
                local MainObjective2 = Section2:WaitForChild("MAINOBJECTIVE2", 5)
                if MainObjective2 then
@@ -409,7 +409,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
          -- SECTION 3
          local Section3 = workspace:FindFirstChild("Section3")
          if Section3 then
-            watchFolder(Section3, "Monster")
+            watchFolder(Section3, "Monster") -- Mengawasi folder Monster untuk MizunoNM
             watchFolder(Section3, "SkillCheckMonster")
          end
 
