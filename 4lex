@@ -277,93 +277,80 @@ local ToggleGataGrunts = Tab:CreateToggle({
       
       -- Daftar nama semua objek musuh & titik lemah
       local targetNames = {
-         ["Gata"] = true,
-         ["Gata2"] = true,
-         ["Grunt1"] = true,
-         ["Grunt2"] = true,
-         ["Grunt3"] = true,
-         ["AkariNM"] = true,
-         ["AkariSpider"] = true,
-         ["AkariRage"] = true,
-         ["Mizuno"] = true,
-         ["Muki"] = true,
-         ["Muki2"] = true,
-         ["HogoGuntai"] = true,
-         ["Baigai"] = true,
-         ["AkariRageNM"] = true,
-         ["MizunoNM"] = true,
-         ["Akari"] = true,
-         ["Tenome"] = true,       -- Musuh dari Floor 1
-         ["Rin"] = true,          -- Musuh dari Floor 2
-         ["Tsukiya"] = true,      -- Musuh dari Floor 3
-         ["Senzai"] = true,       -- Musuh dari Section 3
-         ["Kutsu"] = true,        -- Musuh dari Section 3 SkillCheckMonster
-         ["Enzukai2"] = true,     -- Musuh dari Section 4 Monster
-         ["Rin2"] = true,         -- Musuh dari Section 4 Monster2
-         ["Tenome2"] = true,      -- Musuh dari Section 4 Monster3
-         ["Tsukiya2"] = true,     -- Musuh dari Section 4 Monster4
-         ["EnzukaiRyu"] = true,   -- Boss baru dari Section 4 BossMonster
-         ["EnzukaiWeakPoint"] = true -- Titik lemah baru dari Section 4 WeakPoints.Points
+         ["Gata"] = true, ["Gata2"] = true, ["Grunt1"] = true, ["Grunt2"] = true, ["Grunt3"] = true,
+         ["AkariNM"] = true, ["AkariSpider"] = true, ["AkariRage"] = true, ["Mizuno"] = true,
+         ["Muki"] = true, ["Muki2"] = true, ["HogoGuntai"] = true, ["Baigai"] = true,
+         ["AkariRageNM"] = true, ["MizunoNM"] = true, ["Akari"] = true,
+         ["Tenome"] = true, ["Rin"] = true, ["Tsukiya"] = true, ["Senzai"] = true, ["Kutsu"] = true,
+         ["Enzukai2"] = true, ["Rin2"] = true, ["Tenome2"] = true, ["Tsukiya2"] = true,
+         ["EnzukaiRyu"] = true, ["EnzukaiWeakPoint"] = true
       }
 
-      -- Fungsi untuk memasang ESP sesuai jenis objek
+      -- Tempat menyimpan semua koneksi event biar bisa dimatikan total saat toggle OFF
+      if not _G.ESPConnections then _G.ESPConnections = {} end
+
+      local function cleanupConnections()
+         for _, conn in pairs(_G.ESPConnections) do
+            if conn then conn:Disconnect() end
+         end
+         _G.ESPConnections = {}
+      end
+
+      -- Fungsi memasang ESP
       local function applyESP(obj)
-         if targetNames[obj.Name] then
-            
-            -- KHUSUS AKARI & AKARINM: Menggunakan BoxHandleAdornment (Anti Invisible)
-            if obj.Name == "Akari" or obj.Name == "AkariNM" then
-               if not obj:FindFirstChild("EnemyBoxESP") then
-                  local mainPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")) or (obj:IsA("BasePart") and obj)
-                  
-                  if mainPart then
-                     local box = Instance.new("BoxHandleAdornment")
-                     box.Name = "EnemyBoxESP"
-                     box.Size = obj:IsA("Model") and (obj:GetExtentsSize() + Vector3.new(0.2, 0.2, 0.2)) or (mainPart.Size + Vector3.new(0.2, 0.2, 0.2))
-                     box.Color3 = Color3.fromRGB(255, 0, 0) -- Merah
-                     box.Transparency = 0.6
-                     box.AlwaysOnTop = true
-                     box.ZIndex = 10
-                     box.Adornee = mainPart
-                     box.Parent = obj
+         if not targetNames[obj.Name] then return end
+         
+         -- KHUSUS AKARI & AKARINM (Box ESP)
+         if obj.Name == "Akari" or obj.Name == "AkariNM" then
+            if not obj:FindFirstChild("EnemyBoxESP") then
+               local mainPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")) or (obj:IsA("BasePart") and obj)
+               if mainPart then
+                  local box = Instance.new("BoxHandleAdornment")
+                  box.Name = "EnemyBoxESP"
+                  box.Size = obj:IsA("Model") and (obj:GetExtentsSize() + Vector3.new(0.2, 0.2, 0.2)) or (mainPart.Size + Vector3.new(0.2, 0.2, 0.2))
+                  box.Color3 = Color3.fromRGB(255, 0, 0)
+                  box.Transparency = 0.6
+                  box.AlwaysOnTop = true
+                  box.ZIndex = 10
+                  box.Adornee = mainPart
+                  box.Parent = obj
 
-                     local selectionBox = Instance.new("SelectionBox")
-                     selectionBox.Name = "EnemyBoxOutline"
-                     selectionBox.Color3 = Color3.fromRGB(255, 255, 255)
-                     selectionBox.LineThickness = 0.05
-                     selectionBox.Adornee = mainPart
-                     selectionBox.Parent = box
-                  end
-               end
-               
-            -- UNTUK MUSUH LAINNYA & WEAKPOINTS: Kembali Menggunakan Highlight Asli
-            else
-               if not obj:FindFirstChild("EnemyHighlight") then
-                  local highlight = Instance.new("Highlight")
-                  highlight.Name = "EnemyHighlight"
-                  highlight.FillColor = Color3.fromRGB(255, 0, 0) -- Merah
-                  highlight.FillTransparency = 0.5
-                  highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                  highlight.OutlineTransparency = 0
-                  highlight.Parent = obj
-
-                  -- Loop khusus untuk memaksa Highlight tetap terlihat walaupun objek invisible
-                  task.spawn(function()
-                     while _G.GataGruntsESP and highlight and highlight.Parent do
-                        if highlight.FillTransparency ~= 0.5 or highlight.OutlineTransparency ~= 0 then
-                           highlight.FillTransparency = 0.5
-                           highlight.OutlineTransparency = 0
-                        end
-                        task.wait(0.3)
-                     end
-                  end)
+                  local selectionBox = Instance.new("SelectionBox")
+                  selectionBox.Name = "EnemyBoxOutline"
+                  selectionBox.Color3 = Color3.fromRGB(255, 255, 255)
+                  selectionBox.LineThickness = 0.05
+                  selectionBox.Adornee = mainPart
+                  selectionBox.Parent = box
                end
             end
+         -- UNTUK MUSUH LAINNYA (Highlight)
+         else
+            if not obj:FindFirstChild("EnemyHighlight") then
+               local highlight = Instance.new("Highlight")
+               highlight.Name = "EnemyHighlight"
+               highlight.FillColor = Color3.fromRGB(255, 0, 0)
+               highlight.FillTransparency = 0.5
+               highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+               highlight.OutlineTransparency = 0
+               highlight.Parent = obj
 
+               -- Loop ringan per-objek untuk anti-invisible
+               task.spawn(function()
+                  while _G.GataGruntsESP and highlight and highlight.Parent do
+                     if highlight.FillTransparency ~= 0.5 or highlight.OutlineTransparency ~= 0 then
+                        highlight.FillTransparency = 0.5
+                        highlight.OutlineTransparency = 0
+                     end
+                     task.wait(0.5) -- Diturunkan ke 0.5s agar konsumsi CPU jauh lebih hemat
+                  end
+               end)
+            end
          end
       end
 
-      -- Fungsi untuk menghapus semua jenis ESP
+      -- Fungsi hapus ESP
       local function removeESP()
+         cleanupConnections()
          for _, v in pairs(workspace:GetDescendants()) do
             if v.Name == "EnemyHighlight" or v.Name == "EnemyBoxESP" then
                v:Destroy()
@@ -371,98 +358,59 @@ local ToggleGataGrunts = Tab:CreateToggle({
          end
       end
 
-      -- Bersihkan koneksi lama jika ada (Sisa dari script sebelumnya)
-      if _G.GlobalEnemyConnection then 
-         _G.GlobalEnemyConnection:Disconnect() 
-         _G.GlobalEnemyConnection = nil 
+      -- Fungsi untuk mengawasi folder (Scan isi sekarang + deteksi otomatis saat ada monster baru masuk)
+      local function watchFolder(folder)
+         if not folder then return end
+         
+         -- Scan objek yang sudah ada di dalam folder saat ini
+         for _, child in pairs(folder:GetChildren()) do
+            applyESP(child)
+         end
+         
+         -- Deteksi otomatis jika ada objek baru yang masuk ke folder ini (0% Lag)
+         local conn = folder.ChildAdded:Connect(function(child)
+            task.wait(0.1) -- Delay super singkat memastikan objek ter-load sempurna
+            if _G.GataGruntsESP then
+               applyESP(child)
+            end
+         end)
+         
+         table.insert(_G.ESPConnections, conn)
       end
 
       if _G.GataGruntsESP then
-         
-         -- 1. Scan langsung ke dalam folder spesifik Section1 (Grunts)
+         -- SECTION 1
          local Section1 = workspace:FindFirstChild("Section1")
-         if Section1 then
-            local GruntsFolder = Section1:FindFirstChild("Grunts")
-            if GruntsFolder then
-               for _, grunt in pairs(GruntsFolder:GetChildren()) do
-                  applyESP(grunt)
-               end
-            end
-         end
+         if Section1 then watchFolder(Section1:FindFirstChild("Grunts")) end
 
-         -- 2. Scan langsung ke dalam folder spesifik Section2 (Floor 1-3 & Grunts)
+         -- SECTION 2
          local Section2 = workspace:FindFirstChild("Section2")
          if Section2 then
-            -- Scan Grunts di Section2
-            local S2Grunts = Section2:FindFirstChild("Grunts")
-            if S2Grunts then
-               for _, grunt in pairs(S2Grunts:GetChildren()) do
-                  applyESP(grunt)
-               end
-            end
-
-            -- Scan Floor 1 sampai 3
+            watchFolder(Section2:FindFirstChild("Grunts"))
             for i = 1, 3 do
                local floor = Section2:FindFirstChild("Floor" .. i)
-               local monsterFolder = floor and floor:FindFirstChild("Monster")
-               if monsterFolder then
-                  for _, monster in pairs(monsterFolder:GetChildren()) do
-                     applyESP(monster)
-                  end
-               end
+               if floor then watchFolder(floor:FindFirstChild("Monster")) end
             end
          end
 
-         -- 3. Scan langsung ke dalam folder spesifik Section3
+         -- SECTION 3
          local Section3 = workspace:FindFirstChild("Section3")
          if Section3 then
-            local MonsterFolder3 = Section3:FindFirstChild("Monster")
-            if MonsterFolder3 then
-               for _, monster in pairs(MonsterFolder3:GetChildren()) do
-                  applyESP(monster)
-               end
-            end
-
-            local SkillCheckMonsterFolder = Section3:FindFirstChild("SkillCheckMonster")
-            if SkillCheckMonsterFolder then
-               for _, monster in pairs(SkillCheckMonsterFolder:GetChildren()) do
-                  applyESP(monster)
-               end
-            end
+            watchFolder(Section3:FindFirstChild("Monster"))
+            watchFolder(Section3:FindFirstChild("SkillCheckMonster"))
          end
 
-         -- 4. Scan langsung ke dalam folder spesifik Section4 (Termasuk Boss & WeakPoints)
+         -- SECTION 4
          local Section4 = workspace:FindFirstChild("Section4")
          if Section4 then
-            -- Scan Monster 1 sampai 4
-            local M1 = Section4:FindFirstChild("Monster")
-            if M1 then for _, m in pairs(M1:GetChildren()) do applyESP(m) end end
+            watchFolder(Section4:FindFirstChild("Monster"))
+            watchFolder(Section4:FindFirstChild("Monster2"))
+            watchFolder(Section4:FindFirstChild("Monster3"))
+            watchFolder(Section4:FindFirstChild("Monster4"))
+            watchFolder(Section4:FindFirstChild("BossMonster"))
             
-            local M2 = Section4:FindFirstChild("Monster2")
-            if M2 then for _, m in pairs(M2:GetChildren()) do applyESP(m) end end
-            
-            local M3 = Section4:FindFirstChild("Monster3")
-            if M3 then for _, m in pairs(M3:GetChildren()) do applyESP(m) end end
-            
-            local M4 = Section4:FindFirstChild("Monster4")
-            if M4 then for _, m in pairs(M4:GetChildren()) do applyESP(m) end end
-
-            -- Scan BossMonster (EnzukaiRyu)
-            local BossFolder = Section4:FindFirstChild("BossMonster")
-            if BossFolder then
-               for _, boss in pairs(BossFolder:GetChildren()) do
-                  applyESP(boss)
-               end
-            end
-
-            -- Scan WeakPoints -> Points (EnzukaiWeakPoint)
             local WeakPoints = Section4:FindFirstChild("WeakPoints")
-            local PointsFolder = WeakPoints and WeakPoints:FindFirstChild("Points")
-            if PointsFolder then
-               for _, point in pairs(PointsFolder:GetChildren()) do
-                  applyESP(point)
-               end
-            end
+            if WeakPoints then watchFolder(WeakPoints:FindFirstChild("Points")) end
          end
       else
          removeESP()
