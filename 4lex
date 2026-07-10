@@ -322,7 +322,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
                   selectionBox.Parent = box
                end
             end
-         -- UNTUK MUSUH LAINNYA (Highlight)
+         -- UNTUK MUSUH LAINNYA (Termasuk AkariSpider -> Menggunakan Highlight)
          else
             if not obj:FindFirstChild("EnemyHighlight") then
                local highlight = Instance.new("Highlight")
@@ -389,7 +389,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
             watchFolder(Section2, "Grunts")
             watchFolder(Section2, "Monster")
             
-            -- Mengawasi folder MAINOBJECTIVE2 -> Spiders secara aman
+            -- Jalur khusus MAINOBJECTIVE2 -> Spiders (Tempat AkariSpider)
             task.spawn(function()
                local MainObjective2 = Section2:WaitForChild("MAINOBJECTIVE2", 5)
                if MainObjective2 then
