@@ -66,44 +66,6 @@ end)
 -- =============================================================================
 -- FITUR 2 & 4: FLY PLATFORM & TELEPORT VERTIKAL (Optimasi Variabel Lokal)
 -- =============================================================================
-local SensitivitasKamera = 0.5 
-local KecepatanTombol = 0.75   
-local IsPressingE = false
-local IsPressingQ = false
-
--- Menggunakan variabel lokal modul, bukan _G untuk performa maksimal
-local TPConnection = nil
-local TPPlatform = nil
-local TPTargetY = 0
-
-local function MatikanScriptTotal(humanoid)
-   if TPConnection then
-      TPConnection:Disconnect()
-      TPConnection = nil
-   end
-   if TPPlatform then
-      TPPlatform:Destroy()
-      TPPlatform = nil
-   end
-   if humanoid then
-      humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
-      humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-      humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
-   end
-end
-
--- Deteksi Keyboard E & Q
-UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-   if gameProcessedEvent then return end
-   if input.KeyCode == Enum.KeyCode.E then IsPressingE = true
-   elseif input.KeyCode == Enum.KeyCode.Q then IsPressingQ = true end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-   if input.KeyCode == Enum.KeyCode.E then IsPressingE = false
-   elseif input.KeyCode == Enum.KeyCode.Q then IsPressingQ = false end
-end)
-
 local ToggleFly = Tab:CreateToggle({
    Name = "Fly Platform (Fix Kamera + E/Q)",
    CurrentValue = false,
@@ -113,99 +75,74 @@ local ToggleFly = Tab:CreateToggle({
       local hrp = character and character:FindFirstChild("HumanoidRootPart")
       local humanoid = character and character:FindFirstChildOfClass("Humanoid")
       
-      if not hrp or not humanoid then return end
-      MatikanScriptTotal(humanoid)
+      -- Bersihkan sisa platform/koneksi lama terlebih dahulu (Penting!)
+      if TPConnection then TPConnection:Disconnect() TPConnection = nil end
+      if TPPlatform then pcall(function() TPPlatform:Destroy() end) TPPlatform = nil end
       
-      if not Value then return end
+      if not Value then
+         if humanoid then
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+            humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+         end
+         return
+      end
       
+      if not hrp or not humanoid then 
+         Rayfield:Notify({Title = "Error", Content = "Karakter/HumanoidRootPart tidak ditemukan!", Duration = 3})
+         return 
+      end
+      
+      -- Setup State Karakter
       humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
       humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
       humanoid:ChangeState(Enum.HumanoidStateType.Running)
       
       TPTargetY = hrp.Position.Y - 3.5
       
-      TPPlatform = Instance.new("Part")
-      TPPlatform.Name = "InvisibleTPFloor"
-      TPPlatform.Size = Vector3.new(8, 0.5, 8)
-      TPPlatform.Value = true
-      TPPlatform.Anchored = true
-      TPPlatform.CanCollide = true
-      TPPlatform.Transparency = 1
-      TPPlatform.Parent = workspace
+      -- Membuat Platform Baru (Fix Typo .Value)
+      local platform = Instance.new("Part")
+      platform.Name = "InvisibleTPFloor"
+      platform.Size = Vector3.new(8, 0.5, 8)
+      platform.Anchored = true
+      platform.CanCollide = true
+      platform.Transparency = 1
+      platform.Parent = workspace
+      TPPlatform = platform -- Masukkan ke variabel global modul
       
+      -- Loop Utama menggunakan RenderStepped yang Aman
       TPConnection = RunService.RenderStepped:Connect(function()
-         if TPPlatform and hrp and humanoid and Camera then
+         -- Cek ulang apakah karakter dan platform masih eksis di setiap frame
+         local currentChar = Player.Character
+         local currentHrp = currentChar and currentChar:FindFirstChild("HumanoidRootPart")
+         local currentHumanoid = currentChar and currentChar:FindFirstChildOfClass("Humanoid")
+         
+         if platform and platform.Parent and currentHrp and currentHumanoid and Camera then
             if IsPressingE then
                TPTargetY = TPTargetY + KecepatanTombol
             elseif IsPressingQ then
                TPTargetY = TPTargetY - KecepatanTombol
-            elseif humanoid.MoveDirection.Magnitude > 0 then
+            elseif currentHumanoid.MoveDirection.Magnitude > 0 then
                local ArahKameraY = Camera.CFrame.LookVector.Y
-               local ArahJalanKarakter = humanoid.MoveDirection:Dot(Camera.CFrame.LookVector)
+               local ArahJalanKarakter = currentHumanoid.MoveDirection:Dot(Camera.CFrame.LookVector)
                local MultiplierArah = ArahJalanKarakter > 0 and 1 or (ArahJalanKarakter < 0 and -1 or 0)
                TPTargetY = TPTargetY + (ArahKameraY * SensitivitasKamera * MultiplierArah)
             end
             
-            TPPlatform.CFrame = CFrame.new(hrp.Position.X, TPTargetY, hrp.Position.Z)
-            hrp.CFrame = CFrame.new(hrp.Position.X, TPTargetY + 3.5, hrp.Position.Z)
-            hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+            -- Update Posisi
+            platform.CFrame = CFrame.new(currentHrp.Position.X, TPTargetY, currentHrp.Position.Z)
+            currentHrp.CFrame = CFrame.new(currentHrp.Position.X, TPTargetY + 3.5, currentHrp.Position.Z)
+            currentHrp.Velocity = Vector3.new(currentHrp.Velocity.X, 0, currentHrp.Velocity.Z)
             
-            if humanoid:GetState() ~= Enum.HumanoidStateType.Running then
-               humanoid:ChangeState(Enum.HumanoidStateType.Running)
+            if currentHumanoid:GetState() ~= Enum.HumanoidStateType.Running then
+               currentHumanoid:ChangeState(Enum.HumanoidStateType.Running)
             end
          else
-            MatikanScriptTotal(humanoid)
+            -- Jika karakter mati atau platform hilang, matikan koneksi otomatis
+            if TPConnection then TPConnection:Disconnect() TPConnection = nil end
          end
       end)
    end,
-})
-
-local InputKetinggian = Tab:CreateInput({
-   Name = "Teleport Vertikal (+ Lantai Tetap)",
-   CurrentValue = "",
-   PlaceholderText = "Angka untuk TP / Kosongkan untuk hilangkan lantai",
-   RemoveTextAfterFocusLost = false,
-   Flag = "InstantTPPlatformInput",
-   Callback = function(Text)
-      local character = Player.Character
-      local hrp = character and character:FindFirstChild("HumanoidRootPart")
-      local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-      
-      if not hrp or not humanoid then return end
-      if Text == "" or Text == nil then MatikanScriptTotal(humanoid) return end
-      
-      local Angka = tonumber(Text)
-      if Angka then
-         MatikanScriptTotal(humanoid)
-         
-         humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
-         humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-         humanoid:ChangeState(Enum.HumanoidStateType.Running)
-         
-         TPTargetY = (hrp.Position.Y + Angka) - 3.5
-         hrp.CFrame = hrp.CFrame + Vector3.new(0, Angka, 0)
-         
-         TPPlatform = Instance.new("Part")
-         TPPlatform.Name = "InvisibleTPFloor"
-         TPPlatform.Size = Vector3.new(8, 0.5, 8)
-         TPPlatform.Anchored = true
-         TPPlatform.CanCollide = true
-         TPPlatform.Transparency = 1
-         TPPlatform.Parent = workspace
-         
-         TPConnection = RunService.RenderStepped:Connect(function()
-            if TPPlatform and hrp and humanoid then
-               TPPlatform.CFrame = CFrame.new(hrp.Position.X, TPTargetY, hrp.Position.Z)
-               hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
-               if humanoid:GetState() ~= Enum.HumanoidStateType.Running then
-                  humanoid:ChangeState(Enum.HumanoidStateType.Running)
-               end
-            else
-               MatikanScriptTotal(humanoid)
-            end
-         end)
-      end
-   end
 })
 
 -- =============================================================================
