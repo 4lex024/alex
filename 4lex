@@ -286,7 +286,6 @@ local ToggleGataGrunts = Tab:CreateToggle({
          ["EnzukaiRyu"] = true, ["EnzukaiWeakPoint"] = true
       }
 
-      -- Tempat menyimpan semua koneksi event biar bisa dimatikan total saat toggle OFF
       if not _G.ESPConnections then _G.ESPConnections = {} end
 
       local function cleanupConnections()
@@ -334,14 +333,13 @@ local ToggleGataGrunts = Tab:CreateToggle({
                highlight.OutlineTransparency = 0
                highlight.Parent = obj
 
-               -- Loop ringan per-objek untuk anti-invisible
                task.spawn(function()
                   while _G.GataGruntsESP and highlight and highlight.Parent do
                      if highlight.FillTransparency ~= 0.5 or highlight.OutlineTransparency ~= 0 then
                         highlight.FillTransparency = 0.5
                         highlight.OutlineTransparency = 0
                      end
-                     task.wait(0.5) -- Diturunkan ke 0.5s agar konsumsi CPU jauh lebih hemat
+                     task.wait(0.5)
                   end
                end)
             end
@@ -358,59 +356,68 @@ local ToggleGataGrunts = Tab:CreateToggle({
          end
       end
 
-      -- Fungsi untuk mengawasi folder (Scan isi sekarang + deteksi otomatis saat ada monster baru masuk)
-      local function watchFolder(folder)
-         if not folder then return end
-         
-         -- Scan objek yang sudah ada di dalam folder saat ini
-         for _, child in pairs(folder:GetChildren()) do
-            applyESP(child)
-         end
-         
-         -- Deteksi otomatis jika ada objek baru yang masuk ke folder ini (0% Lag)
-         local conn = folder.ChildAdded:Connect(function(child)
-            task.wait(0.1) -- Delay super singkat memastikan objek ter-load sempurna
-            if _G.GataGruntsESP then
+      -- Fungsi mengawasi folder dengan aman dan menunggu jika folder belum ada
+      local function watchFolder(parentPath, folderName)
+         task.spawn(function()
+            -- Menunggu folder muncul jika belum di-render oleh game (anti-error & anti-skip)
+            local folder = parentPath:WaitForChild(folderName, 5) 
+            if not folder then return end
+            
+            -- Scan musuh yang sudah ada di dalam folder saat ini
+            for _, child in pairs(folder:GetChildren()) do
                applyESP(child)
             end
+            
+            -- Deteksi otomatis saat musuh baru masuk ke folder
+            local conn = folder.ChildAdded:Connect(function(child)
+               task.wait(0.1)
+               if _G.GataGruntsESP then
+                  applyESP(child)
+               end
+            end)
+            table.insert(_G.ESPConnections, conn)
          end)
-         
-         table.insert(_G.ESPConnections, conn)
       end
 
       if _G.GataGruntsESP then
+         -- SCRIPT MEMULAI PENGAWASAN KETAT (Aman & 0% Lag)
+         
          -- SECTION 1
          local Section1 = workspace:FindFirstChild("Section1")
-         if Section1 then watchFolder(Section1:FindFirstChild("Grunts")) end
+         if Section1 then watchFolder(Section1, "Grunts") end
 
          -- SECTION 2
          local Section2 = workspace:FindFirstChild("Section2")
          if Section2 then
-            watchFolder(Section2:FindFirstChild("Grunts"))
-            for i = 1, 3 do
-               local floor = Section2:FindFirstChild("Floor" .. i)
-               if floor then watchFolder(floor:FindFirstChild("Monster")) end
-            end
+            watchFolder(Section2, "Grunts")
+            task.spawn(function()
+               for i = 1, 3 do
+                  local floor = Section2:WaitForChild("Floor" .. i, 5)
+                  if floor then watchFolder(floor, "Monster") end
+               end
+            end)
          end
 
          -- SECTION 3
          local Section3 = workspace:FindFirstChild("Section3")
          if Section3 then
-            watchFolder(Section3:FindFirstChild("Monster"))
-            watchFolder(Section3:FindFirstChild("SkillCheckMonster"))
+            watchFolder(Section3, "Monster")
+            watchFolder(Section3, "SkillCheckMonster")
          end
 
          -- SECTION 4
          local Section4 = workspace:FindFirstChild("Section4")
          if Section4 then
-            watchFolder(Section4:FindFirstChild("Monster"))
-            watchFolder(Section4:FindFirstChild("Monster2"))
-            watchFolder(Section4:FindFirstChild("Monster3"))
-            watchFolder(Section4:FindFirstChild("Monster4"))
-            watchFolder(Section4:FindFirstChild("BossMonster"))
+            watchFolder(Section4, "Monster")
+            watchFolder(Section4, "Monster2")
+            watchFolder(Section4, "Monster3")
+            watchFolder(Section4, "Monster4")
+            watchFolder(Section4, "BossMonster")
             
-            local WeakPoints = Section4:FindFirstChild("WeakPoints")
-            if WeakPoints then watchFolder(WeakPoints:FindFirstChild("Points")) end
+            task.spawn(function()
+               local WeakPoints = Section4:WaitForChild("WeakPoints", 5)
+               if WeakPoints then watchFolder(WeakPoints, "Points") end
+            end)
          end
       else
          removeESP()
