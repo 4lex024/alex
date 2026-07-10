@@ -275,7 +275,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
    Callback = function(Value)
       _G.GataGruntsESP = Value
       
-      -- Daftar nama semua objek musuh (Termasuk Senzai dan SenzaiDoor)
+      -- Daftar nama semua objek musuh (SenzaiDoor dihapus, Kutsu ditambahkan)
       local targetNames = {
          ["Gata"] = true,
          ["Gata2"] = true,
@@ -293,11 +293,11 @@ local ToggleGataGrunts = Tab:CreateToggle({
          ["AkariRageNM"] = true,
          ["MizunoNM"] = true,
          ["Akari"] = true,
-         ["Tenome"] = true,   -- Musuh baru dari Floor 1
-         ["Rin"] = true,      -- Musuh baru dari Floor 2
-         ["Tsukiya"] = true,  -- Musuh baru dari Floor 3
-         ["Senzai"] = true,   -- Musuh baru dari Section 3
-         ["SenzaiDoor"] = true -- Musuh baru dari Section 3
+         ["Tenome"] = true,   -- Musuh dari Floor 1
+         ["Rin"] = true,      -- Musuh dari Floor 2
+         ["Tsukiya"] = true,  -- Musuh dari Floor 3
+         ["Senzai"] = true,   -- Musuh dari Section 3
+         ["Kutsu"] = true     -- Musuh baru dari Section 3 SkillCheckMonster
       }
 
       -- Fungsi untuk memasang ESP sesuai jenis objek
@@ -391,12 +391,22 @@ local ToggleGataGrunts = Tab:CreateToggle({
             end
          end
 
-         -- 3. Scan langsung ke dalam folder spesifik Section3 -> Monster (Senzai & SenzaiDoor)
+         -- 3. Scan langsung ke dalam folder spesifik Section3 -> Monster (Senzai)
          local Section3 = workspace:FindFirstChild("Section3")
-         local MonsterFolder3 = Section3 and Section3:FindFirstChild("Monster")
-         if MonsterFolder3 then
-            for _, monster in pairs(MonsterFolder3:GetChildren()) do
-               applyESP(monster)
+         if Section3 then
+            local MonsterFolder3 = Section3:FindFirstChild("Monster")
+            if MonsterFolder3 then
+               for _, monster in pairs(MonsterFolder3:GetChildren()) do
+                  applyESP(monster)
+               end
+            end
+
+            -- 4. Scan langsung ke dalam folder spesifik Section3 -> SkillCheckMonster (Kutsu)
+            local SkillCheckMonsterFolder = Section3:FindFirstChild("SkillCheckMonster")
+            if SkillCheckMonsterFolder then
+               for _, monster in pairs(SkillCheckMonsterFolder:GetChildren()) do
+                  applyESP(monster)
+               end
             end
          end
       else
@@ -429,7 +439,7 @@ local ToggleEnemyDistance = Tab:CreateToggle({
       local whitelistNames = {
          ["AkariNM"] = true, ["AkariRage"] = true, ["Mizuno"] = true, 
          ["HogoGuntai"] = true, ["Baigai"] = true, ["AkariRageNM"] = true, 
-         ["SenzaiDoor"] = true, ["Senzai"] = true, ["MizunoNM"] = true, ["Akari"] = true
+         ["Kutsu"] = true, ["Senzai"] = true, ["MizunoNM"] = true, ["Akari"] = true
       }
 
       -- Tempat menyimpan objek musuh aktif (Cache)
