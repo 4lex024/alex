@@ -73,15 +73,15 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Pengaturan Kecepatan
-local SensitivitasKamera = 0.5 -- Kecepatan naik/turun lewat arah kamera
-local KecepatanTombol = 0.75   -- Kecepatan naik/turun saat menekan E / Q
+-- Pengaturan Kecepatan (Silakan naikkan angka ini jika dirasa kurang cepat)
+local SensitivitasKamera = 1.0  -- Kecepatan naik/turun lewat hadapan kamera + jalan
+local KecepatanTombol = 1.5     -- Kecepatan naik/turun saat tekan E / Q
 
--- Variabel untuk mengecek status tombol yang sedang ditekan
+-- Variabel status tombol
 local IsPressingE = false
 local IsPressingQ = false
 
--- Fungsi Sakral untuk Mematikan dan Membersihkan Semuanya Sampai Akar
+-- Fungsi Pembersih Total
 local function MatikanScriptTotal(humanoid)
    if _G.TPConnection then
       _G.TPConnection:Disconnect()
@@ -100,12 +100,12 @@ local function MatikanScriptTotal(humanoid)
    end
 end
 
--- Otomatis matikan script versi lama saat kamu klik "Execute" ulang
+-- Otomatis bersihkan versi lama saat re-execute
 local character = LocalPlayer.Character
 local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 MatikanScriptTotal(humanoid)
 
--- IMPLEMENTASI TOGGLE FIX (MAJU MUNDUR ACCURATE)
+-- IMPLEMENTASI TOGGLE FIX (RESPONSIF + ANTI-GETAR)
 local Toggle = Tab:CreateToggle({
    Name = "Fly Platform (Fix Kamera + E/Q)",
    CurrentValue = false,
@@ -128,46 +128,46 @@ local Toggle = Tab:CreateToggle({
       humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
       humanoid:ChangeState(Enum.HumanoidStateType.Running)
       
+      -- Set tinggi awal platform di bawah kaki player
       _G.TPTargetY = hrp.Position.Y - 3.5
       
       _G.TPPlatform = Instance.new("Part")
       _G.TPPlatform.Name = "InvisibleTPFloor"
-      _G.TPPlatform.Size = Vector3.new(8, 0.5, 8)
+      _G.TPPlatform.Size = Vector3.new(15, 0.5, 15) -- Diperbesar sedikit agar pergerakan horizontal aman
       _G.TPPlatform.Anchored = true
       _G.TPPlatform.CanCollide = true
       _G.TPPlatform.Transparency = 1
       _G.TPPlatform.Parent = workspace
       
-      -- Loop Utama (RenderStepped)
-      _G.TPConnection = RunService.RenderStepped:Connect(function()
+      -- Menggunakan Heartbeat agar kalkulasi sinkron setelah kalkulasi fisika Roblox selesai
+      _G.TPConnection = RunService.Heartbeat:Connect(function()
          if not _G.TPConnection then return end 
          
          if _G.TPPlatform and hrp and humanoid and Camera then
             
-            -- 1. Logika Tombol Manual (Prioritas Utama)
+            -- 1. Logika Tombol Manual (Mendapat Prioritas Utama)
             if IsPressingE then
                _G.TPTargetY = _G.TPTargetY + KecepatanTombol
             elseif IsPressingQ then
                _G.TPTargetY = _G.TPTargetY - KecepatanTombol
             
-            -- 2. Logika Kamera Terbimbing (Sudah Di-fix untuk Maju/Mundur)
+            -- 2. Logika Kamera Terbimbing (Maju/Mundur mengikuti kemiringan kamera)
             elseif humanoid.MoveDirection.Magnitude > 0 then
                local ArahKameraY = Camera.CFrame.LookVector.Y
-               
-               -- Menghitung apakah player jalan searah kamera (Maju = 1) atau berlawanan (Mundur = -1)
                local ArahJalanKarakter = humanoid.MoveDirection:Dot(Camera.CFrame.LookVector)
-               
-               -- Ambil tanda arahnya saja (Positif jika maju/serong depan, Negatif jika mundur/serong belakang)
                local MultiplierArah = ArahJalanKarakter > 0 and 1 or (ArahJalanKarakter < 0 and -1 or 0)
                
-               -- Rumus Kalkulasi Tinggi Baru yang Akurat
                _G.TPTargetY = _G.TPTargetY + (ArahKameraY * SensitivitasKamera * MultiplierArah)
             end
             
-            -- Sinkronisasi Posisi Platform & Karakter
+            -- SINKRONISASI POSISI AKTIF:
+            -- Geser platform ke koordinat target Y yang baru
             _G.TPPlatform.CFrame = CFrame.new(hrp.Position.X, _G.TPTargetY, hrp.Position.Z)
+            
+            -- IKAT posisi Y karakter secara paksa di atas platform agar saat turun tidak tertinggal (anti-lambat)
             hrp.CFrame = CFrame.new(hrp.Position.X, _G.TPTargetY + 3.5, hrp.Position.Z)
             
+            -- Netralkan gaya vertikal agar sistem fisika roblox tidak mendeteksi benturan/jatuh
             hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
             
             if humanoid:GetState() ~= Enum.HumanoidStateType.Running then
@@ -181,11 +181,11 @@ local Toggle = Tab:CreateToggle({
 })
 
 --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
--- DETEKSI INPUT KEYBOARD (E & Q)
--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-
+-- DETEKSI INPUT KEYBOARD (E & Q) - DI-FIX AGAR TIDAK DIATUR GAME PROCESSED
+--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-   if gameProcessedEvent then return end
+   -- Tetap izinkan input berjalan meskipun gameProcessedEvent aktif (kecuali sedang mengetik di Chat)
+   if UserInputService:GetFocusedTextBox() then return end
    
    if input.KeyCode == Enum.KeyCode.E then
       IsPressingE = true
