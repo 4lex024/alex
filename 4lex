@@ -275,7 +275,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
    Callback = function(Value)
       _G.GataGruntsESP = Value
       
-      -- Daftar nama semua objek musuh (Termasuk musuh baru dari Section 4)
+      -- Daftar nama semua objek musuh & titik lemah
       local targetNames = {
          ["Gata"] = true,
          ["Gata2"] = true,
@@ -293,15 +293,17 @@ local ToggleGataGrunts = Tab:CreateToggle({
          ["AkariRageNM"] = true,
          ["MizunoNM"] = true,
          ["Akari"] = true,
-         ["Tenome"] = true,   -- Musuh dari Floor 1
-         ["Rin"] = true,      -- Musuh dari Floor 2
-         ["Tsukiya"] = true,  -- Musuh dari Floor 3
-         ["Senzai"] = true,   -- Musuh dari Section 3
-         ["Kutsu"] = true,    -- Musuh dari Section 3 SkillCheckMonster
-         ["Enzukai2"] = true, -- Musuh baru dari Section 4 Monster
-         ["Rin2"] = true,     -- Musuh baru dari Section 4 Monster2
-         ["Tenome2"] = true,  -- Musuh baru dari Section 4 Monster3
-         ["Tsukiya2"] = true  -- Musuh baru dari Section 4 Monster4
+         ["Tenome"] = true,       -- Musuh dari Floor 1
+         ["Rin"] = true,          -- Musuh dari Floor 2
+         ["Tsukiya"] = true,      -- Musuh dari Floor 3
+         ["Senzai"] = true,       -- Musuh dari Section 3
+         ["Kutsu"] = true,        -- Musuh dari Section 3 SkillCheckMonster
+         ["Enzukai2"] = true,     -- Musuh dari Section 4 Monster
+         ["Rin2"] = true,         -- Musuh dari Section 4 Monster2
+         ["Tenome2"] = true,      -- Musuh dari Section 4 Monster3
+         ["Tsukiya2"] = true,     -- Musuh dari Section 4 Monster4
+         ["EnzukaiRyu"] = true,   -- Boss baru dari Section 4 BossMonster
+         ["EnzukaiWeakPoint"] = true -- Titik lemah baru dari Section 4 WeakPoints.Points
       }
 
       -- Fungsi untuk memasang ESP sesuai jenis objek
@@ -333,7 +335,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
                   end
                end
                
-            -- UNTUK MUSUH LAINNYA: Kembali Menggunakan Highlight Asli
+            -- UNTUK MUSUH LAINNYA & WEAKPOINTS: Kembali Menggunakan Highlight Asli
             else
                if not obj:FindFirstChild("EnemyHighlight") then
                   local highlight = Instance.new("Highlight")
@@ -413,24 +415,38 @@ local ToggleGataGrunts = Tab:CreateToggle({
             end
          end
 
-         -- 4. Scan langsung ke dalam folder spesifik Section4 (Monster 1 sampai 4)
+         -- 4. Scan langsung ke dalam folder spesifik Section4 (Termasuk Boss & WeakPoints)
          local Section4 = workspace:FindFirstChild("Section4")
          if Section4 then
-            -- Scan Monster (Enzukai2)
+            -- Scan Monster 1 sampai 4
             local M1 = Section4:FindFirstChild("Monster")
             if M1 then for _, m in pairs(M1:GetChildren()) do applyESP(m) end end
             
-            -- Scan Monster2 (Rin2)
             local M2 = Section4:FindFirstChild("Monster2")
             if M2 then for _, m in pairs(M2:GetChildren()) do applyESP(m) end end
             
-            -- Scan Monster3 (Tenome2)
             local M3 = Section4:FindFirstChild("Monster3")
             if M3 then for _, m in pairs(M3:GetChildren()) do applyESP(m) end end
             
-            -- Scan Monster4 (Tsukiya2)
             local M4 = Section4:FindFirstChild("Monster4")
             if M4 then for _, m in pairs(M4:GetChildren()) do applyESP(m) end end
+
+            -- Scan BossMonster (EnzukaiRyu)
+            local BossFolder = Section4:FindFirstChild("BossMonster")
+            if BossFolder then
+               for _, boss in pairs(BossFolder:GetChildren()) do
+                  applyESP(boss)
+               end
+            end
+
+            -- Scan WeakPoints -> Points (EnzukaiWeakPoint - Mendukung banyak objek sekaligus)
+            local WeakPoints = Section4:FindFirstChild("WeakPoints")
+            local PointsFolder = WeakPoints and WeakPoints:FindFirstChild("Points")
+            if PointsFolder then
+               for _, point in pairs(PointsFolder:GetChildren()) do
+                  applyESP(point)
+               end
+            end
          end
       else
          removeESP()
