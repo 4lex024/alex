@@ -75,7 +75,7 @@ local Camera = workspace.CurrentCamera
 
 -- Pengaturan Kecepatan
 local SensitivitasKamera = 1.0  -- Kecepatan naik/turun lewat hadapan kamera + jalan
-local KecepatanTombol = 1.5     -- Kecepatan naik/turun saat tekan T / Q
+local KecepatanTombol = 0.9     -- Kecepatan naik/turun saat tekan T / Q
 
 -- Variabel status tombol (E diganti ke T)
 local IsPressingT = false
