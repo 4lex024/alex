@@ -275,7 +275,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
    Callback = function(Value)
       _G.GataGruntsESP = Value
       
-      -- Daftar nama semua objek musuh (SenzaiDoor dihapus, Kutsu ditambahkan)
+      -- Daftar nama semua objek musuh (Termasuk musuh baru dari Section 4)
       local targetNames = {
          ["Gata"] = true,
          ["Gata2"] = true,
@@ -297,7 +297,11 @@ local ToggleGataGrunts = Tab:CreateToggle({
          ["Rin"] = true,      -- Musuh dari Floor 2
          ["Tsukiya"] = true,  -- Musuh dari Floor 3
          ["Senzai"] = true,   -- Musuh dari Section 3
-         ["Kutsu"] = true     -- Musuh baru dari Section 3 SkillCheckMonster
+         ["Kutsu"] = true,    -- Musuh dari Section 3 SkillCheckMonster
+         ["Enzukai2"] = true, -- Musuh baru dari Section 4 Monster
+         ["Rin2"] = true,     -- Musuh baru dari Section 4 Monster2
+         ["Tenome2"] = true,  -- Musuh baru dari Section 4 Monster3
+         ["Tsukiya2"] = true  -- Musuh baru dari Section 4 Monster4
       }
 
       -- Fungsi untuk memasang ESP sesuai jenis objek
@@ -391,7 +395,7 @@ local ToggleGataGrunts = Tab:CreateToggle({
             end
          end
 
-         -- 3. Scan langsung ke dalam folder spesifik Section3 -> Monster (Senzai)
+         -- 3. Scan langsung ke dalam folder spesifik Section3
          local Section3 = workspace:FindFirstChild("Section3")
          if Section3 then
             local MonsterFolder3 = Section3:FindFirstChild("Monster")
@@ -401,13 +405,32 @@ local ToggleGataGrunts = Tab:CreateToggle({
                end
             end
 
-            -- 4. Scan langsung ke dalam folder spesifik Section3 -> SkillCheckMonster (Kutsu)
             local SkillCheckMonsterFolder = Section3:FindFirstChild("SkillCheckMonster")
             if SkillCheckMonsterFolder then
                for _, monster in pairs(SkillCheckMonsterFolder:GetChildren()) do
                   applyESP(monster)
                end
             end
+         end
+
+         -- 4. Scan langsung ke dalam folder spesifik Section4 (Monster 1 sampai 4)
+         local Section4 = workspace:FindFirstChild("Section4")
+         if Section4 then
+            -- Scan Monster (Enzukai2)
+            local M1 = Section4:FindFirstChild("Monster")
+            if M1 then for _, m in pairs(M1:GetChildren()) do applyESP(m) end end
+            
+            -- Scan Monster2 (Rin2)
+            local M2 = Section4:FindFirstChild("Monster2")
+            if M2 then for _, m in pairs(M2:GetChildren()) do applyESP(m) end end
+            
+            -- Scan Monster3 (Tenome2)
+            local M3 = Section4:FindFirstChild("Monster3")
+            if M3 then for _, m in pairs(M3:GetChildren()) do applyESP(m) end end
+            
+            -- Scan Monster4 (Tsukiya2)
+            local M4 = Section4:FindFirstChild("Monster4")
+            if M4 then for _, m in pairs(M4:GetChildren()) do applyESP(m) end end
          end
       else
          removeESP()
