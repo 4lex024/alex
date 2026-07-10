@@ -66,84 +66,141 @@ end)
 -- =============================================================================
 -- FITUR 2 & 4: FLY PLATFORM & TELEPORT VERTIKAL (Optimasi Variabel Lokal)
 -- =============================================================================
-local ToggleFly = Tab:CreateToggle({
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Pengaturan Kecepatan
+local SensitivitasKamera = 0.5 -- Kecepatan naik/turun lewat arah kamera
+local KecepatanTombol = 0.75   -- Kecepatan naik/turun saat menekan E / Q
+
+-- Variabel untuk mengecek status tombol yang sedang ditekan
+local IsPressingE = false
+local IsPressingQ = false
+
+-- Fungsi Sakral untuk Mematikan dan Membersihkan Semuanya Sampai Akar
+local function MatikanScriptTotal(humanoid)
+   if _G.TPConnection then
+      _G.TPConnection:Disconnect()
+      _G.TPConnection = nil
+   end
+   
+   if _G.TPPlatform then
+      _G.TPPlatform:Destroy()
+      _G.TPPlatform = nil
+   end
+   
+   if humanoid then
+      humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+      humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+      humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+   end
+end
+
+-- Otomatis matikan script versi lama saat kamu klik "Execute" ulang
+local character = LocalPlayer.Character
+local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+MatikanScriptTotal(humanoid)
+
+-- IMPLEMENTASI TOGGLE FIX (MAJU MUNDUR ACCURATE)
+local Toggle = Tab:CreateToggle({
    Name = "Fly Platform (Fix Kamera + E/Q)",
    CurrentValue = false,
    Flag = "FlyPlatformToggleEQFix", 
    Callback = function(Value)
-      local character = Player.Character
+      local character = LocalPlayer.Character
       local hrp = character and character:FindFirstChild("HumanoidRootPart")
       local humanoid = character and character:FindFirstChildOfClass("Humanoid")
       
-      -- Bersihkan sisa platform/koneksi lama terlebih dahulu (Penting!)
-      if TPConnection then TPConnection:Disconnect() TPConnection = nil end
-      if TPPlatform then pcall(function() TPPlatform:Destroy() end) TPPlatform = nil end
+      if not hrp or not humanoid then return end
       
       if not Value then
-         if humanoid then
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-            humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
-         end
+         MatikanScriptTotal(humanoid)
          return
       end
       
-      if not hrp or not humanoid then 
-         Rayfield:Notify({Title = "Error", Content = "Karakter/HumanoidRootPart tidak ditemukan!", Duration = 3})
-         return 
-      end
+      MatikanScriptTotal(humanoid)
       
-      -- Setup State Karakter
       humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
       humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
       humanoid:ChangeState(Enum.HumanoidStateType.Running)
       
-      TPTargetY = hrp.Position.Y - 3.5
+      _G.TPTargetY = hrp.Position.Y - 3.5
       
-      -- Membuat Platform Baru (Fix Typo .Value)
-      local platform = Instance.new("Part")
-      platform.Name = "InvisibleTPFloor"
-      platform.Size = Vector3.new(8, 0.5, 8)
-      platform.Anchored = true
-      platform.CanCollide = true
-      platform.Transparency = 1
-      platform.Parent = workspace
-      TPPlatform = platform -- Masukkan ke variabel global modul
+      _G.TPPlatform = Instance.new("Part")
+      _G.TPPlatform.Name = "InvisibleTPFloor"
+      _G.TPPlatform.Size = Vector3.new(8, 0.5, 8)
+      _G.TPPlatform.Anchored = true
+      _G.TPPlatform.CanCollide = true
+      _G.TPPlatform.Transparency = 1
+      _G.TPPlatform.Parent = workspace
       
-      -- Loop Utama menggunakan RenderStepped yang Aman
-      TPConnection = RunService.RenderStepped:Connect(function()
-         -- Cek ulang apakah karakter dan platform masih eksis di setiap frame
-         local currentChar = Player.Character
-         local currentHrp = currentChar and currentChar:FindFirstChild("HumanoidRootPart")
-         local currentHumanoid = currentChar and currentChar:FindFirstChildOfClass("Humanoid")
+      -- Loop Utama (RenderStepped)
+      _G.TPConnection = RunService.RenderStepped:Connect(function()
+         if not _G.TPConnection then return end 
          
-         if platform and platform.Parent and currentHrp and currentHumanoid and Camera then
+         if _G.TPPlatform and hrp and humanoid and Camera then
+            
+            -- 1. Logika Tombol Manual (Prioritas Utama)
             if IsPressingE then
-               TPTargetY = TPTargetY + KecepatanTombol
+               _G.TPTargetY = _G.TPTargetY + KecepatanTombol
             elseif IsPressingQ then
-               TPTargetY = TPTargetY - KecepatanTombol
-            elseif currentHumanoid.MoveDirection.Magnitude > 0 then
+               _G.TPTargetY = _G.TPTargetY - KecepatanTombol
+            
+            -- 2. Logika Kamera Terbimbing (Sudah Di-fix untuk Maju/Mundur)
+            elseif humanoid.MoveDirection.Magnitude > 0 then
                local ArahKameraY = Camera.CFrame.LookVector.Y
-               local ArahJalanKarakter = currentHumanoid.MoveDirection:Dot(Camera.CFrame.LookVector)
+               
+               -- Menghitung apakah player jalan searah kamera (Maju = 1) atau berlawanan (Mundur = -1)
+               local ArahJalanKarakter = humanoid.MoveDirection:Dot(Camera.CFrame.LookVector)
+               
+               -- Ambil tanda arahnya saja (Positif jika maju/serong depan, Negatif jika mundur/serong belakang)
                local MultiplierArah = ArahJalanKarakter > 0 and 1 or (ArahJalanKarakter < 0 and -1 or 0)
-               TPTargetY = TPTargetY + (ArahKameraY * SensitivitasKamera * MultiplierArah)
+               
+               -- Rumus Kalkulasi Tinggi Baru yang Akurat
+               _G.TPTargetY = _G.TPTargetY + (ArahKameraY * SensitivitasKamera * MultiplierArah)
             end
             
-            -- Update Posisi
-            platform.CFrame = CFrame.new(currentHrp.Position.X, TPTargetY, currentHrp.Position.Z)
-            currentHrp.CFrame = CFrame.new(currentHrp.Position.X, TPTargetY + 3.5, currentHrp.Position.Z)
-            currentHrp.Velocity = Vector3.new(currentHrp.Velocity.X, 0, currentHrp.Velocity.Z)
+            -- Sinkronisasi Posisi Platform & Karakter
+            _G.TPPlatform.CFrame = CFrame.new(hrp.Position.X, _G.TPTargetY, hrp.Position.Z)
+            hrp.CFrame = CFrame.new(hrp.Position.X, _G.TPTargetY + 3.5, hrp.Position.Z)
             
-            if currentHumanoid:GetState() ~= Enum.HumanoidStateType.Running then
-               currentHumanoid:ChangeState(Enum.HumanoidStateType.Running)
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+            
+            if humanoid:GetState() ~= Enum.HumanoidStateType.Running then
+               humanoid:ChangeState(Enum.HumanoidStateType.Running)
             end
          else
-            -- Jika karakter mati atau platform hilang, matikan koneksi otomatis
-            if TPConnection then TPConnection:Disconnect() TPConnection = nil end
+            MatikanScriptTotal(humanoid)
          end
       end)
    end,
 })
+
+--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+-- DETEKSI INPUT KEYBOARD (E & Q)
+-- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+   if gameProcessedEvent then return end
+   
+   if input.KeyCode == Enum.KeyCode.E then
+      IsPressingE = true
+   elseif input.KeyCode == Enum.KeyCode.Q then
+      IsPressingQ = true
+   end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+   if input.KeyCode == Enum.KeyCode.E then
+      IsPressingE = false
+   elseif input.KeyCode == Enum.KeyCode.Q then
+      IsPressingQ = false
+   end
+end)
 
 -- =============================================================================
 -- FITUR 3: ESP YEN COIN & ENEMIES (Sistem Otomatis & Caching Ringan)
