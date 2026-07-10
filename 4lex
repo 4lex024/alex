@@ -608,3 +608,60 @@ local InputKetinggian = Tab:CreateInput({
       end
    end
 })
+
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+
+-- Menyimpan pengaturan asli game agar bisa dikembalikan saat toggle OFF
+local OriginalAmbient = Lighting.Ambient
+local OriginalOutdoorAmbient = Lighting.OutdoorAmbient
+local OriginalClockTime = Lighting.ClockTime
+local OriginalFogStart = Lighting.FogStart
+local OriginalFogEnd = Lighting.FogEnd
+
+local FullbrightConnection = nil
+
+local Toggle = Tab:CreateToggle({
+   Name = "Fullbright & No Fog",
+   CurrentValue = false,
+   Flag = "FullbrightNoFogToggle", -- Flag unik agar tidak bentrok
+   Callback = function(Value)
+      if Value then
+         -- [ AKTIFKAN FULLBRIGHT & NO FOG ]
+         -- Loop dijalankan terus-menerus agar game tidak bisa memaksa gelap kembali
+         FullbrightConnection = RunService.RenderStepped:Connect(function()
+            Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+            Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+            Lighting.ClockTime = 14
+            
+            -- Menghilangkan Kabut (Fog)
+            Lighting.FogStart = 9e9
+            Lighting.FogEnd = 9e9
+            
+            -- Menghilangkan efek kabut modern (Atmosphere) jika ada di game tersebut
+            local Atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+            if Atmosphere then
+               Atmosphere.Density = 0
+            end
+         end)
+      else
+         -- [ MATIKAN & KEMBALIKAN KE NORMAL ]
+         if FullbrightConnection then
+            FullbrightConnection:Disconnect()
+            FullbrightConnection = nil
+         end
+         
+         -- Kembalikan settingan pencahayaan asli bawaan game
+         Lighting.Ambient = OriginalAmbient
+         Lighting.OutdoorAmbient = OriginalOutdoorAmbient
+         Lighting.ClockTime = OriginalClockTime
+         Lighting.FogStart = OriginalFogStart
+         Lighting.FogEnd = OriginalFogEnd
+         
+         local Atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+         if Atmosphere then
+            Atmosphere.Density = 0.3 -- Nilai rata-rata density atmosphere normal game
+         end
+      end
+   end,
+})
