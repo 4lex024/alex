@@ -387,7 +387,15 @@ local ToggleGataGrunts = Tab:CreateToggle({
          local Section2 = workspace:FindFirstChild("Section2")
          if Section2 then
             watchFolder(Section2, "Grunts")
-            watchFolder(Section2, "Monster") -- Menambahkan workspace.Section2.Monster langsung di sini
+            watchFolder(Section2, "Monster")
+            
+            -- Mengawasi folder MAINOBJECTIVE2 -> Spiders secara aman
+            task.spawn(function()
+               local MainObjective2 = Section2:WaitForChild("MAINOBJECTIVE2", 5)
+               if MainObjective2 then
+                  watchFolder(MainObjective2, "Spiders")
+               end
+            end)
             
             task.spawn(function()
                for i = 1, 3 do
