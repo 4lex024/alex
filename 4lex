@@ -515,3 +515,96 @@ local ToggleEnemyDistance = Tab:CreateToggle({
       end
    end,
 })
+
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- Fungsi Sakral untuk Mematikan dan Membersihkan Semuanya Sampai Akar
+local function MatikanScriptTotal(humanoid)
+   -- 1. Putuskan Loop RenderStepped jika sedang berjalan
+   if _G.TPConnection then
+      _G.TPConnection:Disconnect()
+      _G.TPConnection = nil
+   end
+   
+   -- 2. Hancurkan Platform Invisible jika ada
+   if _G.TPPlatform then
+      _G.TPPlatform:Destroy()
+      _G.TPPlatform = nil
+   end
+   
+   -- 3. Kembalikan State Humanoid ke Normal agar bisa jatuh/bergerak bebas
+   if humanoid then
+      humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+      humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+      humanoid:ChangeState(Enum.HumanoidStateType.Freefall) -- Paksa jatuh jika sedang melayang
+   end
+end
+
+-- Otomatis matikan script versi lama saat kamu klik "Execute" ulang
+local character = LocalPlayer.Character
+local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+MatikanScriptTotal(humanoid)
+
+local InputKetinggian = Tab:CreateInput({
+   Name = "Teleport Vertikal (+ Lantai Tetap)",
+   CurrentValue = "",
+   PlaceholderText = "Angka untuk TP / Kosongkan untuk hilangkan lantai",
+   RemoveTextAfterFocusLost = false,
+   Flag = "InstantTPPlatformInput",
+   Callback = function(Text)
+      local character = LocalPlayer.Character
+      local hrp = character and character:FindFirstChild("HumanoidRootPart")
+      local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+      
+      if not hrp or not humanoid then return end
+      
+      -- JIKA INPUT KOSONG -> MATIKAN TOTAL DAN BERSIHKAN SEMUANYA
+      if Text == "" or Text == nil then
+         MatikanScriptTotal(humanoid)
+         return
+      end
+      
+      -- JIKA INPUT BERUPA ANGKA (Teleport)
+      local Angka = tonumber(Text)
+      if Angka then
+         -- Bersihkan dlu sisa loop sebelumnya sebelum membuat loop baru
+         MatikanScriptTotal(humanoid)
+         
+         humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+         humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+         humanoid:ChangeState(Enum.HumanoidStateType.Running)
+         
+         _G.TPTargetY = (hrp.Position.Y + Angka) - 3.5
+         hrp.CFrame = hrp.CFrame + Vector3.new(0, Angka, 0)
+         
+         _G.TPPlatform = Instance.new("Part")
+         _G.TPPlatform.Name = "InvisibleTPFloor"
+         _G.TPPlatform.Size = Vector3.new(8, 0.5, 8)
+         _G.TPPlatform.Anchored = true
+         _G.TPPlatform.CanCollide = true
+         _G.TPPlatform.Transparency = 1
+         _G.TPPlatform.Parent = workspace
+         
+         -- Jalankan loop baru dan simpan di global table (_G)
+         _G.TPConnection = RunService.RenderStepped:Connect(function()
+            -- Proteksi: Jika tiba-tiba objek dihapus di tengah jalan, loop otomatis berhenti sendiri
+            if not _G.TPConnection then return end 
+            
+            if _G.TPPlatform and hrp and humanoid then
+               _G.TPPlatform.CFrame = CFrame.new(hrp.Position.X, _G.TPTargetY, hrp.Position.Z)
+               hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+               
+               if humanoid:GetState() ~= Enum.HumanoidStateType.Running then
+                  humanoid:ChangeState(Enum.HumanoidStateType.Running)
+               end
+            else
+               -- Jika salah satu object hilang (misal mati/reset), matikan loop-nya
+               MatikanScriptTotal(humanoid)
+            end
+         end)
+      end
+   end
+})
