@@ -176,7 +176,7 @@ local Toggle = Tab:CreateToggle({
 })
 
 --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
--- DETEKSI INPUT KEYBOARD (T & Q)
+-- DETEKSI INPUT KEYBOARD (T, Q, & Numpad 0)
 --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
    if UserInputService:GetFocusedTextBox() then return end
@@ -185,6 +185,9 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
       IsPressingT = true
    elseif input.KeyCode == Enum.KeyCode.Q then
       IsPressingQ = true
+   elseif input.KeyCode == Enum.KeyCode.KeypadZero then
+      -- Membalikkan status toggle saat mendeteksi Numpad 0
+      Toggle:Set(not Toggle.CurrentValue)
    end
 end)
 
@@ -418,3 +421,69 @@ local ToggleFullbright = Tab:CreateToggle({
       end
    end,
 })
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+local targetUsername = ""
+
+local Input = Tab:CreateInput({
+   Name = "Teleport to Player",
+   CurrentValue = "",
+   PlaceholderText = "Masukkan Username...",
+   RemoveTextAfterFocusLost = false,
+   Flag = "InputTeleportTarget",
+   Callback = function(Text)
+       -- Menyimpan text input ke variabel global script
+       targetUsername = Text
+   end,
+})
+
+-- Fungsi untuk mengeksekusi teleportasi
+local function teleportToPlayer()
+    if targetUsername == "" then 
+        warn("Username belum dimasukkan!")
+        return 
+    end
+
+    local foundPlayer = nil
+    -- Mencari player yang cocok (bisa partial name/nama depan saja)
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and string.sub(string.lower(player.Name), 1, #targetUsername) == string.lower(targetUsername) then
+            foundPlayer = player
+            break
+        end
+    end
+
+    if foundPlayer then
+        local localCharacter = LocalPlayer.Character
+        local targetCharacter = foundPlayer.Character
+
+        if localCharacter and targetCharacter then
+            local localRoot = localCharacter:FindFirstChild("HumanoidRootPart")
+            local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
+
+            if localRoot and targetRoot then
+                -- Teleport ke posisi target (sedikit di atasnya agar tidak nyangkut)
+                localRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 3, 0)
+                print("Berhasil teleport ke: " .. foundPlayer.Name)
+            else
+                warn("HumanoidRootPart tidak ditemukan.")
+            end
+        else
+            warn("Karakter player tidak ditemukan.")
+        end
+    else
+        warn("Player dengan nama '" .. targetUsername .. "' tidak ditemukan.")
+    end
+end
+
+-- Mendeteksi tekanan tombol NumpadPlus (+)
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    -- gameProcessedEvent diabaikan agar tombol tetap berfungsi saat mengetik/fokus di UI lain jika diinginkan,
+    -- atau ganti `if input.KeyCode == ...` saja.
+    if input.KeyCode == Enum.KeyCode.KeypadPlus then
+        teleportToPlayer()
+    end
+end)
