@@ -487,3 +487,229 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
         teleportToPlayer()
     end
 end)
+
+
+local autoPerfectConnection = nil
+local pressedTemplates = {} 
+local lastPositions = {} -- Menyimpan posisi frame sebelumnya untuk cek arah pergerakan
+
+-- 2. TOGGLE AUTO PERFECT PERSIS DI POSISI TARGET
+local Toggle = Tab:CreateToggle({
+   Name = "Auto Perfect Minigame",
+   CurrentValue = false,
+   Flag = "RealAutoPerfectScaleV2", 
+   Callback = function(Value)
+       if Value then
+           print("[AUTO] Auto Perfect aktif (Deteksi Persimpangan Posisi).")
+           
+           autoPerfectConnection = RunService.RenderStepped:Connect(function()
+               local skillCheckGui = PlayerGui:FindFirstChild("03_SkillCheck")
+               
+               if skillCheckGui and skillCheckGui.Enabled then
+                   local holder = skillCheckGui:FindFirstChild("Holder")
+                   local objects = holder and holder:FindFirstChild("Objects")
+                   local placement = objects and objects:FindFirstChild("Placement")
+                   
+                   if placement and objects then
+                       -- Target mutlak X Scale = 0.05
+                       local targetScaleX = placement.Position.X.Scale
+                       
+                       for _, child in ipairs(objects:GetChildren()) do
+                           if child.Name == "Template" and child:IsA("GuiObject") then
+                               
+                               if not pressedTemplates[child] then
+                                   local currentScaleX = child.Position.X.Scale
+                                   local previousScaleX = lastPositions[child] or currentScaleX
+                                   
+                                   -- Simpan posisi saat ini untuk pengecekan frame berikutnya
+                                   lastPositions[child] = currentScaleX
+                                   
+                                   local shouldPress = false
+                                   
+                                   -- Cek pergerakan arah objek ke kiri atau ke kanan
+                                   if previousScaleX > currentScaleX then
+                                       -- Bergerak ke kiri: memicu E jika menembus/menyentuh batas 0.05
+                                       if currentScaleX <= targetScaleX then
+                                           shouldPress = true
+                                       end
+                                   elseif previousScaleX < currentScaleX then
+                                       -- Bergerak ke kanan: memicu E jika menembus/menyentuh batas 0.05
+                                       if currentScaleX >= targetScaleX then
+                                           shouldPress = true
+                                       end
+                                   else
+                                       -- Jika frame pertama atau diam tepat di posisi target
+                                       if math.abs(currentScaleX - targetScaleX) <= 0.01 then
+                                           shouldPress = true
+                                       end
+                                   end
+                                   
+                                   if shouldPress then
+                                       -- Mengunci agar kotak ini hanya bisa memicu 1 kali pencet E
+                                       pressedTemplates[child] = true
+                                       
+                                       print(string.format("([!] PAS TARGET) Posisi Template: %.3f -> Menekan E", currentScaleX))
+                                       
+                                       -- Eksekusi tekan sekali tanpa spam
+                                       VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+                                       task.wait(0.01)
+                                       VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+                                       
+                                       break 
+                                   end
+                               end
+                           end
+                       end
+                       
+                       -- Bersihkan data dari objek yang sudah dihancurkan game
+                       for oldChild in pairs(pressedTemplates) do
+                           if not oldChild or not oldChild.Parent then
+                               pressedTemplates[oldChild] = nil
+                               lastPositions[oldChild] = nil
+                           end
+                       end
+                   end
+               else
+                   -- Reset tabel pencatatan saat minigame selesai
+                   if next(pressedTemplates) ~= nil then
+                       pressedTemplates = {}
+                       lastPositions = {}
+                   end
+               end
+           end)
+       else
+           print("[AUTO] Auto Perfect dinonaktifkan.")
+           if autoPerfectConnection then
+               autoPerfectConnection:Disconnect()
+               autoPerfectConnection = nil
+           end
+           pressedTemplates = {}
+           lastPositions = {}
+       end
+   end,
+})
+
+local espActive = false
+local activeTags = {}
+
+-- Daftar semua folder rumah yang ingin dideteksi
+local housePaths = {
+    "workspace.Section5.ISPY.Houses.House1.Items",
+    "workspace.Section5.ISPY.Houses.House2.Items",
+    "workspace.Section5.ISPY.Houses.House3.Items",
+    "workspace.Section5.ISPY.Houses.House4.Items",
+    "workspace.Section5.ISPY.Houses.House5.Items"
+}
+
+-- Fungsi pembantu untuk mendapatkan folder berdasarkan string jalur
+local function getFolderFromPath(pathString)
+    local segments = string.split(pathString, ".")
+    local current = game
+    for _, segment in ipairs(segments) do
+        if segment == "workspace" then
+            current = Workspace
+        else
+            current = current:FindFirstChild(segment)
+        end
+        if not current then return nil end
+    end
+    return current
+end
+
+-- Fungsi untuk membuat/memperbarui ESP di tengah objek berdasarkan jarak
+local function updateESP(item, character)
+    if not item:IsA("BasePart") and not item:FindFirstChildWhichIsA("BasePart") then return end
+    
+    local part = item:IsA("BasePart") and item or item:FindFirstChildWhichIsA("BasePart")
+    if not part or not character or not character:FindFirstChild("HumanoidRootPart") then return end
+
+    -- Hitung jarak antara player dengan item
+    local distance = (character.HumanoidRootPart.Position - part.Position).Magnitude
+    local existingESP = part:FindFirstChild("ItemESPText")
+
+    -- Jarak <= 10 studs
+    if distance <= 50 then
+        if not existingESP then
+            -- Membuat BillboardGui tepat di tengah objek
+            local billboard = Instance.new("BillboardGui")
+            billboard.Name = "ItemESPText"
+            billboard.Size = UDim2.new(0, 200, 0, 50)
+            billboard.AlwaysOnTop = true
+            billboard.ExtentsOffset = Vector3.new(0, 0, 0) -- Pas di tengah objek
+            billboard.Adornee = part
+            billboard.Parent = part
+
+            -- Membuat TextLabel
+            local textLabel = Instance.new("TextLabel")
+            textLabel.Size = UDim2.new(1, 0, 1, 0)
+            textLabel.BackgroundTransparency = 1
+            textLabel.Text = item.Name
+            textLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+            textLabel.TextSize = 14
+            textLabel.TextStrokeTransparency = 0
+            textLabel.Font = Enum.Font.SourceSansBold
+            textLabel.Parent = billboard
+
+            activeTags[item] = billboard
+        end
+    else
+        -- Jika di luar radius, hapus ESP
+        if existingESP then
+            existingESP:Destroy()
+            activeTags[item] = nil
+        end
+    end
+end
+
+-- Fungsi untuk membersihkan semua ESP
+local function removeAllESP()
+    for item, tag in pairs(activeTags) do
+        if tag then tag:Destroy() end
+    end
+    activeTags = {}
+end
+
+-- 2. TOGGLE ITEM ESP ALL HOUSES (10 STUDS)
+local Toggle = Tab:CreateToggle({
+   Name = "Enable Multi-House ESP",
+   CurrentValue = false,
+   Flag = "MultiHouseESP1", 
+   Callback = function(Value)
+       espActive = Value
+       
+       if espActive then
+           print("[ESP] Menyalakan ESP untuk House 1 s/d 5...")
+           
+           task.spawn(function()
+               while espActive do
+                   local char = LocalPlayer.Character
+                   
+                   if char then
+                       -- Looping memeriksa setiap jalur rumah yang ada di daftar
+                       for _, path in ipairs(housePaths) do
+                           local folder = getFolderFromPath(path)
+                           
+                           if folder then
+                               for _, item in ipairs(folder:GetChildren()) do
+                                   updateESP(item, char)
+                               end
+                           end
+                       end
+                       
+                       -- Pembersihan otomatis jika item hilang/diambil
+                       for oldItem, tag in pairs(activeTags) do
+                           if not oldItem or not oldItem.Parent then
+                               if tag then tag:Destroy() end
+                               activeTags[oldItem] = nil
+                           end
+                       end
+                   end
+                   task.wait(0.1) -- Loop cepat 100ms agar responsif saat player berjalan cepat antar rumah
+               end
+           end)
+       else
+           print("[ESP] Mematikan ESP.")
+           removeAllESP()
+       end
+   end,
+})
