@@ -488,7 +488,12 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
     end
 end)
 
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local autoPerfectConnection = nil
 local pressedTemplates = {} 
 local lastPositions = {} -- Menyimpan posisi frame sebelumnya untuk cek arah pergerakan
