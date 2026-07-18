@@ -1,0 +1,157 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "Rayfield Example Window",
+   Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
+   LoadingTitle = "Rayfield Interface Suite",
+   LoadingSubtitle = "by Sirius",
+   ShowText = "Rayfield", -- for mobile users to unhide Rayfield, change if you'd like
+   Theme = "Default", -- Check https://docs.sirius.menu/rayfield/configuration/themes
+
+   ToggleUIKeybind = "K", -- The keybind to toggle the UI visibility (string like "K" or Enum.KeyCode)
+
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false, -- Prevents Rayfield from emitting warnings when the script has a version mismatch with the interface.
+
+   -- ScriptID = "sid_xxxxxxxxxxxx", -- Your Script ID from developer.sirius.menu — enables analytics, managed keys, and script hosting
+
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil, -- Create a custom folder for your hub/game
+      FileName = "Big Hub"
+   },
+
+   Discord = {
+      Enabled = false, -- Prompt the user to join your Discord server if their executor supports it
+      Invite = "noinvitelink", -- The Discord invite code, do not include Discord.gg/. E.g. Discord.gg/ABCD would be ABCD
+      RememberJoins = true -- Set this to false to make them join the Discord every time they load it up
+   },
+
+   KeySystem = false, -- Set this to true to use our key system
+   KeySettings = {
+      Title = "Untitled",
+      Subtitle = "Key System",
+      Note = "No method of obtaining the key is provided", -- Use this to tell the user how to get a key
+      FileName = "Key", -- It is recommended to use something unique, as other scripts using Rayfield may overwrite your key file
+      SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
+      GrabKeyFromSite = false, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
+      Key = {"Hello"} -- List of keys that the system will accept, can be RAW file links (pastebin, github, etc.) or simple strings ("hello", "key22")
+   }
+})
+
+local Tab = Window:CreateTab("Tab Example", 4483362458) -- Title, Image
+
+local Toggle = Tab:CreateToggle({
+    Name = "Log Server Money Events",
+    CurrentValue = false,
+    Flag = "Toggle1", 
+    Callback = function(Value)
+        _G.DetectMoney = Value
+        
+        if _G.DetectMoney then
+            print("[Spy] Mulai memantau event dari server...")
+            
+            -- Mengaitkan hook ke semua RemoteEvent di dalam game
+            local runService = game:GetService("RunService")
+            local players = game:GetService("Players")
+            local localPlayer = players.LocalPlayer
+
+            -- Cari semua RemoteEvent di game dan pasang deteksi
+            for _, desc in ipairs(game:GetDescendants()) do
+                if desc:IsA("RemoteEvent") then
+                    pcall(function()
+                        desc.OnClientEvent:Connect(function(...)
+                            if not _G.DetectMoney then return end
+                            
+                            local args = {...}
+                            local isMoneyEvent = false
+                            
+                            -- Analisis argumen untuk mendeteksi indikasi uang
+                            for i, arg in ipairs(args) do
+                                local argStr = tostring(arg):lower()
+                                -- Cek kata kunci umum sistem uang game Roblox
+                                if argStr:find("cash") or argStr:find("money") or argStr:find("coin") or argStr:find("yen") or argStr:find("gold") then
+                                    isMoneyEvent = true
+                                end
+                            end
+                            
+                            -- Jika terdeteksi, cetak detailnya ke Developer Console (F9)
+                            if isMoneyEvent then
+                                print("---------------------------------------------")
+                                print("[MONEY EVENT DETECTED]")
+                                print("Remote Path: " .. desc:GetFullName())
+                                print("Arguments:")
+                                for i, arg in ipairs(args) do
+                                    print(string.format("  [%d]: %s (%s)", i, tostring(arg), type(arg)))
+                                end
+                                print("---------------------------------------------")
+                            end
+                        end)
+                    end)
+                end
+            end
+        else
+            print("[Spy] Pemantauan dihentikan.")
+        end
+    end,
+})
+
+local Toggle = Tab:CreateToggle({
+   Name = "Auto Spam Minutes",
+   CurrentValue = false,
+   Flag = "ToggleSpamMinutes",
+   Callback = function(Value)
+       _G.AutoMinutes = Value
+       
+       if _G.AutoMinutes then
+           -- Mencari remote berdasarkan path yang terdeteksi oleh spy
+           local remote = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvents") 
+               and game:GetService("ReplicatedStorage").RemoteEvents:FindFirstChild("BarHandler")
+           
+           if not remote then
+               Rayfield:Notify({
+                  Name = "Error",
+                  Content = "Remote BarHandler tidak ditemukan.",
+                  Duration = 3,
+                  Image = 4483362458,
+               })
+               return
+           end
+
+           -- Mencari objek Bar dan Seat di Workspace secara otomatis
+           local targetBar = nil
+           local targetSeat = nil
+           
+           for _, v in ipairs(game:GetService("Workspace"):GetDescendants()) do
+               if v.Name == "Bar" and v:IsA("BasePart") then
+                   targetBar = v
+               elseif v.Name == "Seat" and v:IsA("Seat") then
+                   targetSeat = v
+               end
+               if targetBar and targetSeat then break end
+           end
+
+           if not (targetBar and targetSeat) then
+               Rayfield:Notify({
+                  Name = "Error",
+                  Content = "Gagal menemukan objek Bar atau Seat di game.",
+                  Duration = 3,
+                  Image = 4483362458,
+               })
+               return
+           end
+
+           -- Mulai loop spam selama toggle aktif
+           task.spawn(function()
+               while _G.AutoMinutes do
+                   pcall(function()
+                       -- Mengirim argumen sesuai struktur hasil tangkapan spy kamu
+                       remote:FireServer(targetBar, 3, targetSeat, "Collect")
+                   end)
+                   -- Jeda waktu pengiriman (0.5 detik). Bisa kamu perkecil jika server aman dari limit/kick
+                   task.wait(0.5) 
+               end
+           end)
+       end
+   end,
+})
