@@ -104,7 +104,6 @@ local Toggle = Tab:CreateToggle({
        _G.AutoMinutes = Value
        
        if _G.AutoMinutes then
-           -- Mencari remote berdasarkan path yang terdeteksi oleh spy
            local remote = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvents") 
                and game:GetService("ReplicatedStorage").RemoteEvents:FindFirstChild("BarHandler")
            
@@ -118,38 +117,39 @@ local Toggle = Tab:CreateToggle({
                return
            end
 
-           -- Mencari objek Bar dan Seat di Workspace secara otomatis
-           local targetBar = nil
-           local targetSeat = nil
-           
-           for _, v in ipairs(game:GetService("Workspace"):GetDescendants()) do
-               if v.Name == "Bar" and v:IsA("BasePart") then
-                   targetBar = v
-               elseif v.Name == "Seat" and v:IsA("Seat") then
-                   targetSeat = v
-               end
-               if targetBar and targetSeat then break end
-           end
-
-           if not (targetBar and targetSeat) then
-               Rayfield:Notify({
-                  Name = "Error",
-                  Content = "Gagal menemukan objek Bar atau Seat di game.",
-                  Duration = 3,
-                  Image = 4483362458,
-               })
-               return
-           end
-
            -- Mulai loop spam selama toggle aktif
            task.spawn(function()
                while _G.AutoMinutes do
                    pcall(function()
-                       -- Mengirim argumen sesuai struktur hasil tangkapan spy kamu
-                       remote:FireServer(targetBar, 3, targetSeat, "Collect")
+                       local localPlayer = game:GetService("Players").LocalPlayer
+                       local character = localPlayer.Character
+                       local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+                       
+                       -- Deteksi otomatis kursi yang sedang diduduki player
+                       if humanoid and humanoid.SeatPart and humanoid.SeatPart:IsA("Seat") then
+                           local currentSeat = humanoid.SeatPart
+                           
+                           -- Mencari objek Bar terdekat di sekitar kursi tersebut
+                           local currentBar = nil
+                           if currentSeat.Parent:FindFirstChild("Bar") then
+                               currentBar = currentSeat.Parent.Bar
+                           else
+                               -- Jika tidak ada di parent langsung, cari objek terdekat bernama Bar
+                               for _, obj in ipairs(game:GetService("Workspace"):GetDescendants()) do
+                                   if obj.Name == "Bar" and obj:IsA("BasePart") then
+                                       currentBar = obj
+                                       break
+                                   end
+                               end
+                           end
+                           
+                           if currentBar then
+                               -- Kirim data ke server jika kursi dan bar sudah valid
+                               remote:FireServer(currentBar, 3, currentSeat, "Collect")
+                           end
+                       end
                    end)
-                   -- Jeda waktu pengiriman (0.5 detik). Bisa kamu perkecil jika server aman dari limit/kick
-                   task.wait(0.5) 
+                   task.wait(0.5) -- Jeda pengiriman (0.5 detik)
                end
            end)
        end
