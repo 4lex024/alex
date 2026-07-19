@@ -1,10 +1,12 @@
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
 -- 1. Pembuatan UI Utama (SimpleSpy Style)
 local SimpleSpyMobile = Instance.new("ScreenGui")
 SimpleSpyMobile.Name = "SimpleSpyMobile"
-SimpleSpyMobile.Parent = game:GetService("CoreGui") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+SimpleSpyMobile.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 SimpleSpyMobile.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
@@ -76,7 +78,7 @@ CodeText.TextSize = 13
 CodeText.Font = Enum.Font.Code
 CodeText.TextXAlignment = Enum.TextXAlignment.Left
 CodeText.TextYAlignment = Enum.TextYAlignment.Top
-CodeText.Text = "-- Interact or click items to capture all events"
+CodeText.Text = "-- Interact, hold, or click items to capture all events"
 CodeText.Parent = CodeView
 
 -- Bottom Buttons Grid
@@ -116,7 +118,7 @@ createBottomButton("Exclude (n)")
 createBottomButton("Clr Blacklist")
 createBottomButton("Block (i)")
 createBottomButton("Block (n)")
-createBottomButton("Clr Blocklist")
+createBottomButton("Clr Blacklist")
 createBottomButton("Decompile")
 createBottomButton("Disable Info")
 createBottomButton("Autoblock")
@@ -153,7 +155,7 @@ clrLogsBtn.MouseButton1Click:Connect(function()
     selectedCode = ""
 end)
 
--- 2. Fungsi Perekam Log
+-- 2. Fungsi Perekam Log ke Layar UI
 local function addLog(name, logType, generatedCode, rawPath)
     local logButton = Instance.new("TextButton")
     logButton.Size = UDim2.new(1, 0, 0, 25)
@@ -170,11 +172,13 @@ local function addLog(name, logType, generatedCode, rawPath)
     indicator.Size = UDim2.new(0, 6, 1, 0)
     
     if logType == "RemoteEvent" then
-        indicator.BackgroundColor3 = Color3.fromRGB(230, 200, 30)
+        indicator.BackgroundColor3 = Color3.fromRGB(230, 200, 30) -- Kuning
     elseif logType == "RemoteFunction" then
-        indicator.BackgroundColor3 = Color3.fromRGB(230, 100, 30)
+        indicator.BackgroundColor3 = Color3.fromRGB(230, 100, 30) -- Oranye
+    elseif logType == "ToolActivation" then
+        indicator.BackgroundColor3 = Color3.fromRGB(150, 230, 30) -- Hijau terang
     else
-        indicator.BackgroundColor3 = Color3.fromRGB(30, 150, 230)
+        indicator.BackgroundColor3 = Color3.fromRGB(30, 150, 230) -- Biru
     end
     
     indicator.BorderSizePixel = 0
@@ -191,14 +195,39 @@ end
 
 -- 3. DETEKSI: ProximityPrompt (Interact E)
 ProximityPromptService.PromptTriggered:Connect(function(prompt, player)
-    if player == game:GetService("Players").LocalPlayer then
+    if player == LocalPlayer then
         local promptPath = "game." .. prompt:GetFullName()
         local code = string.format("local prompt = %s\nfireproximityprompt(prompt)", promptPath)
         addLog("PP / " .. prompt.Parent.Name, "Proximity", code, promptPath)
     end
 end)
 
--- 4. CORE DETECTOR: Format Generator
+-- 4. SENSOR BARU: Deteksi Klik Layar pada Item/Tool saat dipegang karakter
+local function trackTool(tool)
+    if tool:IsA("Tool") then
+        tool.Activated:Connect(function()
+            local toolPath = "game." .. tool:GetFullName()
+            local code = string.format(
+                "-- Player clicked the screen with item active\nlocal tool = %s\ntool:Activate()", 
+                toolPath
+            )
+            addLog("TOOL / " .. tool.Name, "ToolActivation", code, toolPath)
+        end)
+    end
+end
+
+-- Deteksi tool yang masuk ke karakter (saat dipegang)
+LocalPlayer.CharacterAppearanceLoaded:Connect(function(char)
+    char.ChildAdded:Connect(trackTool)
+end)
+if LocalPlayer.Character then
+    LocalPlayer.Character.ChildAdded:Connect(trackTool)
+    for _, item in ipairs(LocalPlayer.Character:GetChildren()) do
+        trackTool(item)
+    end
+end
+
+-- 5. CORE DETECTOR: Format Generator Remote
 local function processRemote(remote, method, args)
     local remotePath = "game." .. remote:GetFullName()
     local isEvent = remote:IsA("RemoteEvent")
@@ -226,7 +255,7 @@ local function processRemote(remote, method, args)
     end
 end
 
--- 5. DOUBLE HOOK (__namecall & __index) agar melacak 100% data layaknya SimpleSpy Asli
+-- 6. DOUBLE HOOK (__namecall & __index) agar melacak 100% data layaknya SimpleSpy Asli
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
@@ -249,4 +278,4 @@ oldIndex = hookmetamethod(game, "__index", function(self, key)
     return oldIndex(self, key)
 end)
 
-print("SimpleSpy Ultra Detector Loaded!")
+print("SimpleSpy Ultra Detector + Tool Tracker Loaded!")
