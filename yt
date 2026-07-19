@@ -1,9 +1,8 @@
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-local LogService = game:GetService("LogService")
 
--- 1. Pembuatan UI Utama (Mirip Persis SimpleSpy)
+-- 1. Pembuatan UI Utama (SimpleSpy Style)
 local SimpleSpyMobile = Instance.new("ScreenGui")
 SimpleSpyMobile.Name = "SimpleSpyMobile"
 SimpleSpyMobile.Parent = game:GetService("CoreGui") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
@@ -15,7 +14,7 @@ MainFrame.Position = UDim2.new(0.5, -300, 0.5, -150)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 32, 36)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
-MainFrame.Draggable = true -- Agar bisa digeser di layar HP
+MainFrame.Draggable = true
 MainFrame.Parent = SimpleSpyMobile
 
 -- Top Bar
@@ -78,7 +77,7 @@ CodeText.TextSize = 13
 CodeText.Font = Enum.Font.Code
 CodeText.TextXAlignment = Enum.TextXAlignment.Left
 CodeText.TextYAlignment = Enum.TextYAlignment.Top
-CodeText.Text = "-- Select a log to view code"
+CodeText.Text = "-- Interact with items or objects to see logs"
 CodeText.Parent = CodeView
 
 -- Bottom Buttons Grid
@@ -94,7 +93,6 @@ UIGridLayout.Parent = ButtonGrid
 UIGridLayout.CellSize = UDim2.new(0, 85, 0, 22)
 UIGridLayout.CellPadding = UDim2.new(0, 5, 0, 5)
 
--- Fungsi Membuat Tombol Bawah
 local function createBottomButton(name)
     local btn = Instance.new("TextButton")
     btn.BackgroundColor3 = Color3.fromRGB(45, 48, 54)
@@ -108,7 +106,6 @@ local function createBottomButton(name)
     return btn
 end
 
--- Menambahkan tombol sesuai gambar
 local copyCodeBtn = createBottomButton("Copy Code")
 local copyRemoteBtn = createBottomButton("Copy Remote")
 local runCodeBtn = createBottomButton("Run Code")
@@ -157,7 +154,7 @@ clrLogsBtn.MouseButton1Click:Connect(function()
     selectedCode = ""
 end)
 
--- 2. Sistem Deteksi & Fungsi Perekam Log
+-- 2. Fungsi Perekam Log
 local function addLog(name, logType, generatedCode, rawPath)
     local logButton = Instance.new("TextButton")
     logButton.Size = UDim2.new(1, 0, 0, 25)
@@ -170,10 +167,18 @@ local function addLog(name, logType, generatedCode, rawPath)
     logButton.TextXAlignment = Enum.TextXAlignment.Left
     logButton.Parent = LogList
 
-    -- Indikator Warna Kiri (Kuning untuk Remote, Biru untuk ProximityPrompt)
     local indicator = Instance.new("Frame")
     indicator.Size = UDim2.new(0, 6, 1, 0)
-    indicator.BackgroundColor3 = logType == "Remote" and Color3.fromRGB(230, 200, 30) or Color3.fromRGB(30, 150, 230)
+    
+    -- Warna Indikator: Kuning = RemoteEvent, Oranye = RemoteFunction, Biru = ProximityPrompt
+    if logType == "RemoteEvent" then
+        indicator.BackgroundColor3 = Color3.fromRGB(230, 200, 30)
+    elseif logType == "RemoteFunction" then
+        indicator.BackgroundColor3 = Color3.fromRGB(230, 100, 30)
+    else
+        indicator.BackgroundColor3 = Color3.fromRGB(30, 150, 230)
+    end
+    
     indicator.BorderSizePixel = 0
     indicator.Parent = logButton
 
@@ -186,48 +191,51 @@ local function addLog(name, logType, generatedCode, rawPath)
     LogList.CanvasSize = UDim2.new(0, 0, 0, LogLayout.AbsoluteContentSize.Y)
 end
 
--- 3. CORE DETECTOR: Menangkap ProximityPrompt (Interact E)
+-- 3. DETEKSI: ProximityPrompt (Interact E)
 ProximityPromptService.PromptTriggered:Connect(function(prompt, player)
     if player == game:GetService("Players").LocalPlayer then
         local promptPath = "game." .. prompt:GetFullName()
-        local parentPath = "game." .. prompt.Parent:GetFullName()
-        
-        local code = string.format(
-            "local prompt = %s\nfireproximityprompt(prompt)", 
-            promptPath
-        )
+        local code = string.format("local prompt = %s\nfireproximityprompt(prompt)", promptPath)
         addLog("PP / " .. prompt.Parent.Name, "Proximity", code, promptPath)
     end
 end)
 
--- 4. CORE DETECTOR: Menangkap RemoteEvent Standard
-local oldFireServer
-oldFireServer = hookmetamethod(game, "__namecall", function(self, ...)
+-- 4. DETEKSI CORE: Hooking RemoteEvent & RemoteFunction (Untuk Klik Minum Kopi)
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
     local args = {...}
     
-    if (method == "FireServer" or method == "fireServer") and self:IsA("RemoteEvent") then
+    -- Tangkap FireServer (RemoteEvent) dan InvokeServer (RemoteFunction)
+    if (method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer") then
         local remotePath = "game." .. self:GetFullName()
+        local isEvent = (method == "FireServer" or method == "fireServer")
         
-        -- Generate Format Arguments
+        -- Format Arguments
         local argString = ""
         if #args > 0 then
             for i, v in ipairs(args) do
                 local val = tostring(v)
-                if type(v) == "string" then val = '"' .. v .. '"' end
+                if type(v) == "string" then 
+                    val = '"' .. v .. '"' 
+                elseif type(v) == "table" then
+                    val = "{}" -- Menandakan data berupa table
+                end
                 argString = argString .. "    " .. val .. ",\n"
             end
         end
         
-        local code = string.format(
-            "local args = {\n%s}\n%s:FireServer(unpack(args))", 
-            argString, remotePath
-        )
-        
-        addLog("RE / " .. self.Name, "Remote", code, remotePath)
+        local code = ""
+        if isEvent then
+            code = string.format("local args = {\n%s}\n%s:FireServer(unpack(args))", argString, remotePath)
+            addLog("RE / " .. self.Name, "RemoteEvent", code, remotePath)
+        else
+            code = string.format("local args = {\n%s}\n%s:InvokeServer(unpack(args))", argString, remotePath)
+            addLog("RF / " .. self.Name, "RemoteFunction", code, remotePath)
+        end
     end
     
-    return oldFireServer(self, ...)
+    return oldNamecall(self, ...)
 end)
 
-print("SimpleSpy Proximity & Remote Loaded!")
+print("SimpleSpy Proximity & Click Item Loaded!")
