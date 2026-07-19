@@ -190,24 +190,21 @@ local function addLog(name, logType, generatedCode, rawPath)
     LogList.CanvasSize = UDim2.new(0, 0, 0, LogLayout.AbsoluteContentSize.Y)
 end
 
--- Fungsi Helper untuk menata Path yang memiliki karakter khusus seperti "/"
+-- Fungsi Pembersih Nama Jalur Objek (Metode Asli SimpleSpy)
 local function getCleanPath(instance)
-    local parts = {}
+    local path = ""
     local current = instance
     while current and current ~= game do
         local name = current.Name
+        -- Jika nama mengandung karakter khusus seperti "/", bungkus menggunakan format string ["nama"]
         if string.find(name, "[^%w_]") then
-            table.insert(parts, 1, string.format('["%s"]', name))
+            path = string.format('["%s"]', name) .. path
         else
-            table.insert(parts, 1, "." .. name)
+            path = "." .. name .. path
         end
         current = current.Parent
     end
-    local fullPath = "game"
-    for _, part in ipairs(parts) do
-        fullPath = fullPath .. part
-    end
-    return fullPath
+    return "game" .. path
 end
 
 -- 3. DETEKSI: ProximityPrompt (Interact E)
