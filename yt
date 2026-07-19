@@ -1,157 +1,233 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local LogService = game:GetService("LogService")
 
-local Window = Rayfield:CreateWindow({
-   Name = "Rayfield Example Window",
-   Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
-   LoadingTitle = "Rayfield Interface Suite",
-   LoadingSubtitle = "by Sirius",
-   ShowText = "Rayfield", -- for mobile users to unhide Rayfield, change if you'd like
-   Theme = "Default", -- Check https://docs.sirius.menu/rayfield/configuration/themes
+-- 1. Pembuatan UI Utama (Mirip Persis SimpleSpy)
+local SimpleSpyMobile = Instance.new("ScreenGui")
+SimpleSpyMobile.Name = "SimpleSpyMobile"
+SimpleSpyMobile.Parent = game:GetService("CoreGui") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+SimpleSpyMobile.ResetOnSpawn = false
 
-   ToggleUIKeybind = "K", -- The keybind to toggle the UI visibility (string like "K" or Enum.KeyCode)
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 600, 0, 300)
+MainFrame.Position = UDim2.new(0.5, -300, 0.5, -150)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 32, 36)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true -- Agar bisa digeser di layar HP
+MainFrame.Parent = SimpleSpyMobile
 
-   DisableRayfieldPrompts = false,
-   DisableBuildWarnings = false, -- Prevents Rayfield from emitting warnings when the script has a version mismatch with the interface.
+-- Top Bar
+local TopBar = Instance.new("Frame")
+TopBar.Size = UDim2.new(1, 0, 0, 25)
+TopBar.BackgroundColor3 = Color3.fromRGB(35, 38, 43)
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
 
-   -- ScriptID = "sid_xxxxxxxxxxxx", -- Your Script ID from developer.sirius.menu — enables analytics, managed keys, and script hosting
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(0.5, 0, 1, 0)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "SimpleSpy - Proximity & Remote Edition"
+Title.TextColor3 = Color3.fromRGB(150, 200, 150)
+Title.TextSize = 14
+Title.Font = Enum.Font.SourceSansBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TopBar
 
-   ConfigurationSaving = {
-      Enabled = true,
-      FolderName = nil, -- Create a custom folder for your hub/game
-      FileName = "Big Hub"
-   },
+-- Close Button
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 30, 1, 0)
+CloseBtn.Position = UDim2.new(1, -30, 0, 0)
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(200, 100, 100)
+CloseBtn.TextSize = 16
+CloseBtn.Font = Enum.Font.SourceSansBold
+CloseBtn.Parent = TopBar
+CloseBtn.MouseButton1Click:Connect(function() SimpleSpyMobile:Destroy() end)
 
-   Discord = {
-      Enabled = false, -- Prompt the user to join your Discord server if their executor supports it
-      Invite = "noinvitelink", -- The Discord invite code, do not include Discord.gg/. E.g. Discord.gg/ABCD would be ABCD
-      RememberJoins = true -- Set this to false to make them join the Discord every time they load it up
-   },
+-- Left Sidebar (Logs List)
+local LogList = Instance.new("ScrollingFrame")
+LogList.Size = UDim2.new(0, 150, 1, -85)
+LogList.Position = UDim2.new(0, 0, 0, 25)
+LogList.BackgroundColor3 = Color3.fromRGB(25, 27, 31)
+LogList.BorderSizePixel = 0
+LogList.CanvasSize = UDim2.new(0, 0, 0, 0)
+LogList.Parent = MainFrame
 
-   KeySystem = false, -- Set this to true to use our key system
-   KeySettings = {
-      Title = "Untitled",
-      Subtitle = "Key System",
-      Note = "No method of obtaining the key is provided", -- Use this to tell the user how to get a key
-      FileName = "Key", -- It is recommended to use something unique, as other scripts using Rayfield may overwrite your key file
-      SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
-      GrabKeyFromSite = false, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
-      Key = {"Hello"} -- List of keys that the system will accept, can be RAW file links (pastebin, github, etc.) or simple strings ("hello", "key22")
-   }
-})
+local LogLayout = Instance.new("UIListLayout")
+LogLayout.Parent = LogList
+LogLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-local Tab = Window:CreateTab("Tab Example", 4483362458) -- Title, Image
+-- Right Content (Code View)
+local CodeView = Instance.new("ScrollingFrame")
+CodeView.Size = UDim2.new(1, -150, 1, -85)
+CodeView.Position = UDim2.new(0, 150, 0, 25)
+CodeView.BackgroundColor3 = Color3.fromRGB(40, 44, 52)
+CodeView.BorderSizePixel = 0
+CodeView.Parent = MainFrame
 
-local Toggle = Tab:CreateToggle({
-    Name = "Log Server Money Events",
-    CurrentValue = false,
-    Flag = "Toggle1", 
-    Callback = function(Value)
-        _G.DetectMoney = Value
+local CodeText = Instance.new("TextLabel")
+CodeText.Size = UDim2.new(1, -20, 1, -20)
+CodeText.Position = UDim2.new(0, 10, 0, 10)
+CodeText.BackgroundTransparency = 1
+CodeText.TextColor3 = Color3.fromRGB(220, 220, 220)
+CodeText.TextSize = 13
+CodeText.Font = Enum.Font.Code
+CodeText.TextXAlignment = Enum.TextXAlignment.Left
+CodeText.TextYAlignment = Enum.TextYAlignment.Top
+CodeText.Text = "-- Select a log to view code"
+CodeText.Parent = CodeView
+
+-- Bottom Buttons Grid
+local ButtonGrid = Instance.new("Frame")
+ButtonGrid.Size = UDim2.new(1, 0, 0, 60)
+ButtonGrid.Position = UDim2.new(0, 0, 1, -60)
+ButtonGrid.BackgroundColor3 = Color3.fromRGB(25, 27, 31)
+ButtonGrid.BorderSizePixel = 0
+ButtonGrid.Parent = MainFrame
+
+local UIGridLayout = Instance.new("UIGridLayout")
+UIGridLayout.Parent = ButtonGrid
+UIGridLayout.CellSize = UDim2.new(0, 85, 0, 22)
+UIGridLayout.CellPadding = UDim2.new(0, 5, 0, 5)
+
+-- Fungsi Membuat Tombol Bawah
+local function createBottomButton(name)
+    local btn = Instance.new("TextButton")
+    btn.BackgroundColor3 = Color3.fromRGB(45, 48, 54)
+    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 12
+    btn.Text = name
+    btn.BorderSizePixel = 1
+    btn.BorderColor3 = Color3.fromRGB(60, 64, 70)
+    btn.Parent = ButtonGrid
+    return btn
+end
+
+-- Menambahkan tombol sesuai gambar
+local copyCodeBtn = createBottomButton("Copy Code")
+local copyRemoteBtn = createBottomButton("Copy Remote")
+local runCodeBtn = createBottomButton("Run Code")
+createBottomButton("Get Script")
+createBottomButton("Function Info")
+local clrLogsBtn = createBottomButton("Clr Logs")
+createBottomButton("Exclude (i)")
+createBottomButton("Exclude (n)")
+createBottomButton("Clr Blacklist")
+createBottomButton("Block (i)")
+createBottomButton("Block (n)")
+createBottomButton("Clr Blocklist")
+createBottomButton("Decompile")
+createBottomButton("Disable Info")
+createBottomButton("Autoblock")
+createBottomButton("Logcheckcaller")
+
+local selectedCode = ""
+local selectedRemotePath = ""
+
+copyCodeBtn.MouseButton1Click:Connect(function()
+    setclipboard(selectedCode)
+    copyCodeBtn.Text = "Copied!"
+    task.wait(1)
+    copyCodeBtn.Text = "Copy Code"
+end)
+
+copyRemoteBtn.MouseButton1Click:Connect(function()
+    setclipboard(selectedRemotePath)
+    copyRemoteBtn.Text = "Copied!"
+    task.wait(1)
+    copyRemoteBtn.Text = "Copy Remote"
+end)
+
+runCodeBtn.MouseButton1Click:Connect(function()
+    if selectedCode ~= "" then
+        assert(loadstring(selectedCode))()
+    end
+end)
+
+clrLogsBtn.MouseButton1Click:Connect(function()
+    for _, child in ipairs(LogList:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+    CodeText.Text = "-- Logs Cleared"
+    selectedCode = ""
+end)
+
+-- 2. Sistem Deteksi & Fungsi Perekam Log
+local function addLog(name, logType, generatedCode, rawPath)
+    local logButton = Instance.new("TextButton")
+    logButton.Size = UDim2.new(1, 0, 0, 25)
+    logButton.BackgroundColor3 = Color3.fromRGB(35, 38, 43)
+    logButton.BorderSizePixel = 0
+    logButton.Text = "  " .. name
+    logButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+    logButton.TextSize = 12
+    logButton.Font = Enum.Font.SourceSans
+    logButton.TextXAlignment = Enum.TextXAlignment.Left
+    logButton.Parent = LogList
+
+    -- Indikator Warna Kiri (Kuning untuk Remote, Biru untuk ProximityPrompt)
+    local indicator = Instance.new("Frame")
+    indicator.Size = UDim2.new(0, 6, 1, 0)
+    indicator.BackgroundColor3 = logType == "Remote" and Color3.fromRGB(230, 200, 30) or Color3.fromRGB(30, 150, 230)
+    indicator.BorderSizePixel = 0
+    indicator.Parent = logButton
+
+    logButton.MouseButton1Click:Connect(function()
+        CodeText.Text = generatedCode
+        selectedCode = generatedCode
+        selectedRemotePath = rawPath
+    end)
+    
+    LogList.CanvasSize = UDim2.new(0, 0, 0, LogLayout.AbsoluteContentSize.Y)
+end
+
+-- 3. CORE DETECTOR: Menangkap ProximityPrompt (Interact E)
+ProximityPromptService.PromptTriggered:Connect(function(prompt, player)
+    if player == game:GetService("Players").LocalPlayer then
+        local promptPath = "game." .. prompt:GetFullName()
+        local parentPath = "game." .. prompt.Parent:GetFullName()
         
-        if _G.DetectMoney then
-            print("[Spy] Mulai memantau event dari server...")
-            
-            -- Mengaitkan hook ke semua RemoteEvent di dalam game
-            local runService = game:GetService("RunService")
-            local players = game:GetService("Players")
-            local localPlayer = players.LocalPlayer
+        local code = string.format(
+            "local prompt = %s\nfireproximityprompt(prompt)", 
+            promptPath
+        )
+        addLog("PP / " .. prompt.Parent.Name, "Proximity", code, promptPath)
+    end
+end)
 
-            -- Cari semua RemoteEvent di game dan pasang deteksi
-            for _, desc in ipairs(game:GetDescendants()) do
-                if desc:IsA("RemoteEvent") then
-                    pcall(function()
-                        desc.OnClientEvent:Connect(function(...)
-                            if not _G.DetectMoney then return end
-                            
-                            local args = {...}
-                            local isMoneyEvent = false
-                            
-                            -- Analisis argumen untuk mendeteksi indikasi uang
-                            for i, arg in ipairs(args) do
-                                local argStr = tostring(arg):lower()
-                                -- Cek kata kunci umum sistem uang game Roblox
-                                if argStr:find("cash") or argStr:find("money") or argStr:find("coin") or argStr:find("yen") or argStr:find("gold") then
-                                    isMoneyEvent = true
-                                end
-                            end
-                            
-                            -- Jika terdeteksi, cetak detailnya ke Developer Console (F9)
-                            if isMoneyEvent then
-                                print("---------------------------------------------")
-                                print("[MONEY EVENT DETECTED]")
-                                print("Remote Path: " .. desc:GetFullName())
-                                print("Arguments:")
-                                for i, arg in ipairs(args) do
-                                    print(string.format("  [%d]: %s (%s)", i, tostring(arg), type(arg)))
-                                end
-                                print("---------------------------------------------")
-                            end
-                        end)
-                    end)
-                end
+-- 4. CORE DETECTOR: Menangkap RemoteEvent Standard
+local oldFireServer
+oldFireServer = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+    
+    if (method == "FireServer" or method == "fireServer") and self:IsA("RemoteEvent") then
+        local remotePath = "game." .. self:GetFullName()
+        
+        -- Generate Format Arguments
+        local argString = ""
+        if #args > 0 then
+            for i, v in ipairs(args) do
+                local val = tostring(v)
+                if type(v) == "string" then val = '"' .. v .. '"' end
+                argString = argString .. "    " .. val .. ",\n"
             end
-        else
-            print("[Spy] Pemantauan dihentikan.")
         end
-    end,
-})
+        
+        local code = string.format(
+            "local args = {\n%s}\n%s:FireServer(unpack(args))", 
+            argString, remotePath
+        )
+        
+        addLog("RE / " .. self.Name, "Remote", code, remotePath)
+    end
+    
+    return oldFireServer(self, ...)
+end)
 
-local Toggle = Tab:CreateToggle({
-   Name = "Auto Spam Minutes",
-   CurrentValue = false,
-   Flag = "ToggleSpamMinutes",
-   Callback = function(Value)
-       _G.AutoMinutes = Value
-       
-       if _G.AutoMinutes then
-           local remote = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvents") 
-               and game:GetService("ReplicatedStorage").RemoteEvents:FindFirstChild("BarHandler")
-           
-           if not remote then
-               Rayfield:Notify({
-                  Name = "Error",
-                  Content = "Remote BarHandler tidak ditemukan.",
-                  Duration = 3,
-                  Image = 4483362458,
-               })
-               return
-           end
-
-           -- Mulai loop spam selama toggle aktif
-           task.spawn(function()
-               while _G.AutoMinutes do
-                   pcall(function()
-                       local localPlayer = game:GetService("Players").LocalPlayer
-                       local character = localPlayer.Character
-                       local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-                       
-                       -- Deteksi otomatis kursi yang sedang diduduki player
-                       if humanoid and humanoid.SeatPart and humanoid.SeatPart:IsA("Seat") then
-                           local currentSeat = humanoid.SeatPart
-                           
-                           -- Mencari objek Bar terdekat di sekitar kursi tersebut
-                           local currentBar = nil
-                           if currentSeat.Parent:FindFirstChild("Bar") then
-                               currentBar = currentSeat.Parent.Bar
-                           else
-                               -- Jika tidak ada di parent langsung, cari objek terdekat bernama Bar
-                               for _, obj in ipairs(game:GetService("Workspace"):GetDescendants()) do
-                                   if obj.Name == "Bar" and obj:IsA("BasePart") then
-                                       currentBar = obj
-                                       break
-                                   end
-                               end
-                           end
-                           
-                           if currentBar then
-                               -- Kirim data ke server jika kursi dan bar sudah valid
-                               remote:FireServer(currentBar, 3, currentSeat, "Collect")
-                           end
-                       end
-                   end)
-                   task.wait(0.5) -- Jeda pengiriman (0.5 detik)
-               end
-           end)
-       end
-   end,
-})
+print("SimpleSpy Proximity & Remote Loaded!")
