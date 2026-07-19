@@ -2,7 +2,7 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
--- 1. Pembuatan UI Utama (SimpleSpy Style - Tidak Dirubah)
+-- 1. Pembuatan UI Utama (SimpleSpy Style - Tetap Sama)
 local SimpleSpyMobile = Instance.new("ScreenGui")
 SimpleSpyMobile.Name = "SimpleSpyMobile"
 SimpleSpyMobile.Parent = game:GetService("CoreGui") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
@@ -28,7 +28,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(0.5, 0, 1, 0)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "SimpleSpy - Proximity & Remote Edition"
+Title.Text = "SimpleSpy - Net Gateway Edition"
 Title.TextColor3 = Color3.fromRGB(150, 200, 150)
 Title.TextSize = 14
 Title.Font = Enum.Font.SourceSansBold
@@ -77,7 +77,7 @@ CodeText.TextSize = 13
 CodeText.Font = Enum.Font.Code
 CodeText.TextXAlignment = Enum.TextXAlignment.Left
 CodeText.TextYAlignment = Enum.TextYAlignment.Top
-CodeText.Text = "-- Interact with items or objects to see logs"
+CodeText.Text = "-- Waiting for Util.Net Gateway traffic..."
 CodeText.Parent = CodeView
 
 -- Bottom Buttons Grid
@@ -162,7 +162,7 @@ local function addLog(name, logType, generatedCode, rawPath)
     logButton.BorderSizePixel = 0
     logButton.Text = "  " .. name
     logButton.TextColor3 = Color3.fromRGB(200, 200, 200)
-    logButton.TextSize = 12
+    logButton.TextSize = 11
     logButton.Font = Enum.Font.SourceSans
     logButton.TextXAlignment = Enum.TextXAlignment.Left
     logButton.Parent = LogList
@@ -190,38 +190,31 @@ local function addLog(name, logType, generatedCode, rawPath)
     LogList.CanvasSize = UDim2.new(0, 0, 0, LogLayout.AbsoluteContentSize.Y)
 end
 
--- 3. LOGIKA JALUR ASLI SIMPLESPY (Mengatasi karakter Khusus / Nil Instance)
+-- 3. Fungsi Pembersih Jalur Khusus (Mendukung struktur game.ReplicatedStorage.Util.Net["..."])
 local function getCleanPath(instance)
-    if not instance then return "nil" end
-    local path = ""
+    local parts = {}
     local current = instance
-    
     while current and current ~= game do
         local name = current.Name
         if string.find(name, "[^%w_]") then
-            path = '["' .. name .. '"]' .. path
+            table.insert(parts, 1, string.format('["%s"]', name))
         else
-            if path ~= "" and string.sub(path, 1, 1) == "[" then
-                path = "." .. name .. path
-            else
-                path = "." .. name .. (path ~= "" and path or "")
-            end
+            table.insert(parts, 1, "." .. name)
         end
         current = current.Parent
     end
-    return "game" .. path
+    local fullPath = "game"
+    for _, part in ipairs(parts) do
+        if string.sub(part, 1, 1) == "[" then
+            fullPath = fullPath .. part
+        else
+            fullPath = fullPath .. part
+        end
+    end
+    return fullPath
 end
 
--- 4. DETEKSI: ProximityPrompt (Interact E)
-ProximityPromptService.PromptTriggered:Connect(function(prompt, player)
-    if player == game:GetService("Players").LocalPlayer then
-        local promptPath = getCleanPath(prompt)
-        local code = string.format("local prompt = %s\nfireproximityprompt(prompt)", promptPath)
-        addLog("PP / " .. prompt.Parent.Name, "Proximity", code, promptPath)
-    end
-end)
-
--- 5. LOGIKA HOOK ASLI SIMPLESPY (Mencegah Bypass Metatable Global)
+-- 4. Format Argument Generator
 local function formatArgs(args)
     local argString = ""
     for i, v in ipairs(args) do
@@ -236,27 +229,62 @@ local function formatArgs(args)
     return argString
 end
 
--- Menggunakan skema Hook Asli SimpleSpy agar tembus perlindungan framework game
+-- Logika Utama Penangkap Aktivitas Gate Remote
+local function handleRemoteCapture(self, method, args)
+    local remotePath = getCleanPath(self)
+    local isEvent = (method == "FireServer" or method == "fireServer")
+    
+    -- Ambil sub-name unik (biasanya ada di argumen pertama pada tipe data gate)
+    local displayName = self.Name
+    if #args > 0 and type(args[1]) == "string" then
+        displayName = args[1]
+    end
+
+    local argString = formatArgs(args)
+    local code = ""
+    
+    if isEvent then
+        code = string.format("local args = {\n%s}\n%s:FireServer(unpack(args))", argString, remotePath)
+        addLog("RE / " .. displayName, "RemoteEvent", code, remotePath)
+    else
+        code = string.format("local args = {\n%s}\n%s:InvokeServer(unpack(args))", argString, remotePath)
+        addLog("RF / " .. displayName, "RemoteFunction", code, remotePath)
+    end
+end
+
+-- 5. PEREKATAN GANDA (Metamethod Global + Direct Function Hooking)
+-- Mencegah framework custom melewati deteksi spy biasa
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
     local args = {...}
-    
-    if (method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer") and (self:IsA("RemoteEvent") or self:IsA("RemoteFunction")) then
-        local remotePath = getCleanPath(self)
-        local isEvent = self:IsA("RemoteEvent")
-        local argString = formatArgs(args)
-        
-        local code = ""
-        if isEvent then
-            code = string.format("local args = {\n%s}\n%s:FireServer(unpack(args))", argString, remotePath)
-            addLog("RE / " .. self.Name, "RemoteEvent", code, remotePath)
-        else
-            code = string.format("local args = {\n%s}\n%s:InvokeServer(unpack(args))", argString, remotePath)
-            addLog("RF / " .. self.Name, "RemoteFunction", code, remotePath)
-        end
+    if (method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer") then
+        handleRemoteCapture(self, method, args)
     end
     return oldNamecall(self, ...)
 end)
 
-print("SimpleSpy Proximity & Pure Core Loaded Successfully!")
+local oldFireServer
+oldFireServer = hookfunction(Instance.new("RemoteEvent").FireServer, function(self, ...)
+    local args = {...}
+    handleRemoteCapture(self, "FireServer", args)
+    return oldFireServer(self, ...)
+end)
+
+local oldInvokeServer
+oldInvokeServer = hookfunction(Instance.new("RemoteFunction").InvokeServer, function(self, ...)
+    local args = {...}
+    handleRemoteCapture(self, "InvokeServer", args)
+    return oldInvokeServer(self, ...)
+end)
+
+-- Proximity Prompt (Interact E)
+ProximityPromptService.PromptTriggered:Connect(function(prompt, player)
+    if player == game:GetService("Players").LocalPlayer then
+        local promptPath = getCleanPath(prompt)
+        local code = string.format("local prompt = %s\nfireproximityprompt(prompt)", promptPath)
+        addLog("PP / " .. prompt.Parent.Name, "Proximity", code, promptPath)
+    end
+end)
+
+print("SimpleSpy Net Gateway Edition Loaded!")
