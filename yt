@@ -1,8 +1,7 @@
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local LogService = game:GetService("LogService")
 
--- 1. Pembuatan UI Utama (SimpleSpy Style Khusus Mobile/Delta)
+-- 1. Pembuatan UI Utama (SimpleSpy Mobile Style)
 local SimpleSpyMobile = Instance.new("ScreenGui")
 SimpleSpyMobile.Name = "SimpleSpyMobile"
 SimpleSpyMobile.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
@@ -28,7 +27,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(0.5, 0, 1, 0)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "SimpleSpy - Special Remote Character Edition"
+Title.Text = "SimpleSpy - Direct Instance Hook"
 Title.TextColor3 = Color3.fromRGB(150, 200, 150)
 Title.TextSize = 14
 Title.Font = Enum.Font.SourceSansBold
@@ -46,7 +45,7 @@ CloseBtn.Font = Enum.Font.SourceSansBold
 CloseBtn.Parent = TopBar
 CloseBtn.MouseButton1Click:Connect(function() SimpleSpyMobile:Destroy() end)
 
--- Left Sidebar (Logs List)
+-- Left Sidebar
 local LogList = Instance.new("ScrollingFrame")
 LogList.Size = UDim2.new(0, 180, 1, -85)
 LogList.Position = UDim2.new(0, 0, 0, 25)
@@ -59,7 +58,7 @@ local LogLayout = Instance.new("UIListLayout")
 LogLayout.Parent = LogList
 LogLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
--- Right Content (Code View)
+-- Right Content
 local CodeView = Instance.new("ScrollingFrame")
 CodeView.Size = UDim2.new(1, -180, 1, -85)
 CodeView.Position = UDim2.new(0, 180, 0, 25)
@@ -76,7 +75,7 @@ CodeText.TextSize = 13
 CodeText.Font = Enum.Font.Code
 CodeText.TextXAlignment = Enum.TextXAlignment.Left
 CodeText.TextYAlignment = Enum.TextYAlignment.Top
-CodeText.Text = "-- Interact/Use items to capture special named remotes"
+CodeText.Text = "-- Waiting for Network Activity..."
 CodeText.Parent = CodeView
 
 -- Bottom Buttons
@@ -92,31 +91,21 @@ UIGridLayout.Parent = ButtonGrid
 UIGridLayout.CellSize = UDim2.new(0, 90, 0, 22)
 UIGridLayout.CellPadding = UDim2.new(0, 5, 0, 5)
 
-local function createBottomButton(name)
-    local btn = Instance.new("TextButton")
-    btn.BackgroundColor3 = Color3.fromRGB(45, 48, 54)
-    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    btn.Font = Enum.Font.SourceSans
-    btn.TextSize = 12
-    btn.Text = name
-    btn.BorderSizePixel = 1
-    btn.BorderColor3 = Color3.fromRGB(60, 64, 70)
-    btn.Parent = ButtonGrid
-    return btn
-end
+local copyCodeBtn = Instance.new("TextButton")
+copyCodeBtn.Text = "Copy Code"
+copyCodeBtn.Parent = ButtonGrid
 
-local copyCodeBtn = createBottomButton("Copy Code")
-local clrLogsBtn = createBottomButton("Clr Logs")
+local clrLogsBtn = Instance.new("TextButton")
+clrLogsBtn.Text = "Clr Logs"
+clrLogsBtn.Parent = ButtonGrid
 
 local selectedCode = ""
 
 copyCodeBtn.MouseButton1Click:Connect(function()
-    if setclipboard then
-        setclipboard(selectedCode)
-        copyCodeBtn.Text = "Copied!"
-        task.wait(1)
-        copyCodeBtn.Text = "Copy Code"
-    end
+    setclipboard(selectedCode)
+    copyCodeBtn.Text = "Copied!"
+    task.wait(1)
+    copyCodeBtn.Text = "Copy Code"
 end)
 
 clrLogsBtn.MouseButton1Click:Connect(function()
@@ -127,7 +116,7 @@ clrLogsBtn.MouseButton1Click:Connect(function()
     selectedCode = ""
 end)
 
--- 2. Fungsi Pembuat Log Spesial
+-- 2. Fungsi Pembuat Log
 local function addLog(name, logType, generatedCode)
     local logButton = Instance.new("TextButton")
     logButton.Size = UDim2.new(1, 0, 0, 25)
@@ -154,14 +143,12 @@ local function addLog(name, logType, generatedCode)
     LogList.CanvasSize = UDim2.new(0, 0, 0, LogLayout.AbsoluteContentSize.Y)
 end
 
--- 3. Fungsi Pembersih Jalur Objek (Mencegah Error akibat karakter "/")
+-- 3. Fungsi Pembersih Jalur Karakter Khusus ["/"]
 local function getCleanPath(instance)
     local parts = {}
     local current = instance
-    
     while current and current ~= game do
         local name = current.Name
-        -- Bungkus dengan format string jika nama memiliki karakter non-alfanumerik seperti "/"
         if string.find(name, "[^%w_]") then
             table.insert(parts, 1, string.format('["%s"]', name))
         else
@@ -169,67 +156,49 @@ local function getCleanPath(instance)
         end
         current = current.Parent
     end
-    
     local fullPath = "game"
     for _, part in ipairs(parts) do
-        if string.sub(part, 1, 1) == "[" then
-            fullPath = fullPath .. part
-        else
-            fullPath = fullPath .. part
-        end
+        fullPath = fullPath .. part
     end
     return fullPath
 end
 
--- 4. Pengolah Sinyal Remote
-local function processRemote(remote, method, args)
-    local cleanPath = getCleanPath(remote)
-    local isEvent = remote:IsA("RemoteEvent")
-    
+-- 4. Generator Format Pengubah Argumen
+local function formatArgs(args)
     local argString = ""
-    if #args > 0 then
-        for i, v in ipairs(args) do
-            local val = tostring(v)
-            if type(v) == "string" then 
-                val = '"' .. v .. '"' 
-            elseif type(v) == "table" then
-                val = "{}" 
-            end
-            argString = argString .. "    " .. val .. ",\n"
+    for i, v in ipairs(args) do
+        local val = tostring(v)
+        if type(v) == "string" then 
+            val = '"' .. v .. '"' 
+        elseif type(v) == "table" then
+            val = "{}"
         end
+        argString = argString .. "    " .. val .. ",\n"
     end
-    
-    local code = ""
-    if isEvent then
-        code = string.format("local args = {\n%s}\n%s:FireServer(unpack(args))", argString, cleanPath)
-        addLog(remote.Name, "RemoteEvent", code)
-    else
-        code = string.format("local args = {\n%s}\n%s:InvokeServer(unpack(args))", argString, cleanPath)
-        addLog(remote.Name, "RemoteFunction", code)
-    end
+    return argString
 end
 
--- 5. Perekatan Metamethod Tingkat Tinggi (__namecall & __index)
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local method = getnamecallmethod()
+-- 5. PEREKATAN AGRESIF: Hook langsung ke Method Instance Asli (Bypass Metatable)
+local oldFireServer
+oldFireServer = hookfunction(Instance.new("RemoteEvent").FireServer, function(self, ...)
     local args = {...}
-    
-    if (method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer") and (self:IsA("RemoteEvent") or self:IsA("RemoteFunction")) then
-        processRemote(self, method, args)
-    end
-    return oldNamecall(self, ...)
+    task.spawn(function()
+        local cleanPath = getCleanPath(self)
+        local code = string.format("local args = {\n%s}\n%s:FireServer(unpack(args))", formatArgs(args), cleanPath)
+        addLog(self.Name, "RemoteEvent", code)
+    end)
+    return oldFireServer(self, ...)
 end)
 
-local oldIndex
-oldIndex = hookmetamethod(game, "__index", function(self, key)
-    if (key == "FireServer" or key == "fireServer" or key == "InvokeServer" or key == "invokeServer") and (self:IsA("RemoteEvent") or self:IsA("RemoteFunction")) then
-        return function(_, ...)
-            processRemote(self, key, {...})
-            return oldIndex(self, key)(self, ...)
-        end
-    end
-    return oldIndex(self, key)
+local oldInvokeServer
+oldInvokeServer = hookfunction(Instance.new("RemoteFunction").InvokeServer, function(self, ...)
+    local args = {...}
+    task.spawn(function()
+        local cleanPath = getCleanPath(self)
+        local code = string.format("local args = {\n%s}\n%s:InvokeServer(unpack(args))", formatArgs(args), cleanPath)
+        addLog(self.Name, "RemoteFunction", code)
+    end)
+    return oldInvokeServer(self, ...)
 end)
 
-print("Special Characters Remote Spy Loaded!")
+print("Agresif Direct Hook Terpasang! Coba pakai item/kopi sekarang.")
