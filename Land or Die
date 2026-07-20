@@ -1,0 +1,266 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "Rayfield Example Window",
+   Icon = 0,
+   LoadingTitle = "Rayfield Interface Suite",
+   LoadingSubtitle = "by Sirius",
+   ShowText = "Rayfield",
+   Theme = "Default",
+
+   ToggleUIKeybind = "K",
+
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
+
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil,
+      FileName = "Big Hub"
+   },
+
+   Discord = {
+      Enabled = false,
+      Invite = "noinvitelink",
+      RememberJoins = true
+   },
+
+   KeySystem = false,
+   KeySettings = {
+      Title = "Untitled",
+      Subtitle = "Key System",
+      Note = "No method of obtaining the key is provided",
+      FileName = "Key",
+      SaveKey = true,
+      GrabKeyFromSite = false,
+      Key = {"Hello"}
+   }
+})
+
+local ButtonTab = Window:CreateTab("Button", nil)
+
+ButtonTab:CreateButton({
+   Name = "Fuel Door",
+   Callback = function()
+      local args = {
+         "Fuel Door",
+         workspace:WaitForChild("Plane"):WaitForChild("Fuel"):WaitForChild("PortRight"):WaitForChild("FuelDoor")
+      }
+      game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("TooltipAction"):FireServer(unpack(args))
+   end,
+})
+
+ButtonTab:CreateButton({
+   Name = "Fix Autopilot",
+   Callback = function()
+      local args = {
+         "autopilot_fix",
+         workspace:WaitForChild("Plane"):WaitForChild("Cockpit"):WaitForChild("AutopilotButton")
+      }
+      game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("TooltipAction"):FireServer(unpack(args))
+   end,
+})
+
+ButtonTab:CreateButton({
+   Name = "Fix Oxygen",
+   Callback = function()
+      local args = {
+         "oxygen_fix",
+         workspace:WaitForChild("Plane"):WaitForChild("Cockpit"):WaitForChild("OxygenButton")
+      }
+      game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("TooltipAction"):FireServer(unpack(args))
+   end,
+})
+
+ButtonTab:CreateButton({
+   Name = "Pickup Delivery",
+   Callback = function()
+      local args = {
+         "Pickup Delivery",
+         Instance.new("MeshPart", nil)
+      }
+      game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("TooltipAction"):FireServer(unpack(args))
+   end,
+})
+
+ButtonTab:CreateButton({
+   Name = "Fix Toilet",
+   Callback = function()
+      local args = {
+         "Unclog Toilet",
+         workspace:WaitForChild("Plane"):WaitForChild("Toilet"):WaitForChild("Toilet_1")
+      }
+      game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("TooltipAction"):FireServer(unpack(args))
+   end,
+})
+
+-- Diperbaiki: mengubah TaButtonTabb menjadi ButtonTab
+ButtonTab:CreateButton({
+   Name = "Fix Radio",
+   Callback = function()
+      local args = {
+         "atc_fix",
+         workspace:WaitForChild("Plane"):WaitForChild("Cockpit"):WaitForChild("ATCButton")
+      }
+      game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("TooltipAction"):FireServer(unpack(args))
+   end,
+})
+
+ButtonTab:CreateButton({
+   Name = "Gas Action (Start & Stop)",
+   Callback = function()
+      local ReplicatedStorage = game:GetService("ReplicatedStorage")
+      local GasAction = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("GasAction")
+      
+      GasAction:FireServer("start", "PortRight")
+      task.wait(1)
+      GasAction:FireServer("stop")
+   end,
+})
+
+ButtonTab:CreateButton({
+   Name = "Fix Windows",
+   Callback = function()
+      local ReplicatedStorage = game:GetService("ReplicatedStorage")
+      local TooltipAction = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("TooltipAction")
+      local windowsFolder = workspace:WaitForChild("Plane"):WaitForChild("Windows")
+      
+      -- Iterasi melalui semua anak (window) yang ada di folder Windows
+      for _, window in ipairs(windowsFolder:GetChildren()) do
+         -- Cek apakah window memiliki child/objek bernama "Air"
+         if window:FindFirstChild("Air") then
+            local args = {
+               "fix_window",
+               window
+            }
+            TooltipAction:FireServer(unpack(args))
+         end
+      end
+   end,
+})
+
+ButtonTab:CreateButton({
+   Name = "Feed Passengers",
+   Callback = function()
+      local ReplicatedStorage = game:GetService("ReplicatedStorage")
+      local TooltipAction = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("TooltipAction")
+      local passengersFolder = workspace:WaitForChild("Plane"):WaitForChild("Passengers")
+      
+      for i = 1, 6 do
+         local passenger = passengersFolder:FindFirstChild("Passenger_" .. i)
+         if passenger then
+            -- Mencari objek Bar di dalam path yang ditentukan
+            local bar = passenger:FindFirstChild("HumanoidRootPart")
+               and passenger.HumanoidRootPart:FindFirstChild("Health")
+               and passenger.HumanoidRootPart.Health:FindFirstChild("BarHolder")
+               and passenger.HumanoidRootPart.Health.BarHolder:FindFirstChild("Bar")
+            
+            -- Memeriksa apakah skala X kurang dari atau sama dengan 0.4
+            if bar and bar.Size.X.Scale <= 0.4 then
+               local args = {
+                  "Feed",
+                  passenger
+               }
+               TooltipAction:FireServer(unpack(args))
+            end
+         end
+      end
+   end,
+})
+
+ButtonTab:CreateButton({
+   Name = "Repair Engine 1",
+   Callback = function()
+      local args = {
+         "Repair Engine",
+         workspace:WaitForChild("Plane"):WaitForChild("Engines"):WaitForChild("Engine1"):WaitForChild("RepairHitbox")
+      }
+      game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("TooltipAction"):FireServer(unpack(args))
+   end,
+})
+
+ButtonTab:CreateButton({
+   Name = "Repair Engine 2",
+   Callback = function()
+      local args = {
+         "Repair Engine",
+         workspace:WaitForChild("Plane"):WaitForChild("Engines"):WaitForChild("Engine2"):WaitForChild("RepairHitbox")
+      }
+      game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("TooltipAction"):FireServer(unpack(args))
+   end,
+})
+
+ButtonTab:CreateButton({
+   Name = "Fix Power",
+   Callback = function()
+      local args = {
+         "electricbox_fix",
+         workspace:WaitForChild("Plane"):WaitForChild("ElectricBox"):WaitForChild("ElectricBox_1"):WaitForChild("Hitbox")
+      }
+      game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("TooltipAction"):FireServer(unpack(args))
+   end,
+})
+
+local ToggleTab = Window:CreateTab("Toggle", nil)
+
+local radioToggled = false
+local talkToggled = false
+
+ToggleTab:CreateToggle({
+   Name = "Loop Radio ATC (1 Detik)",
+   CurrentValue = false,
+   Flag = "LoopRadioATC_Toggle",
+   Callback = function(Value)
+      radioToggled = Value
+      
+      if radioToggled then
+         task.spawn(function()
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local TooltipAction = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("TooltipAction")
+            
+            while radioToggled do
+               local args = {
+                  "Radio",
+                  workspace:WaitForChild("Plane"):WaitForChild("Cockpit"):WaitForChild("ATCButton")
+               }
+               TooltipAction:FireServer(unpack(args))
+               task.wait(1)
+            end
+         end)
+      end
+   end,
+})
+
+ToggleTab:CreateToggle({
+   Name = "Auto Talk All Passengers",
+   CurrentValue = false,
+   Flag = "AutoTalkPassengers_Toggle",
+   Callback = function(Value)
+      talkToggled = Value
+      
+      if talkToggled then
+         task.spawn(function()
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local TooltipAction = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("TooltipAction")
+            local PassengersFolder = workspace:WaitForChild("Plane"):WaitForChild("Passengers")
+            
+            while talkToggled do
+               for i = 1, 6 do
+                  if not talkToggled then break end
+                  
+                  local passengerObj = PassengersFolder:FindFirstChild("Passenger_" .. i)
+                  if passengerObj then
+                     local args = {
+                        "Talk to Passenger",
+                        passengerObj
+                     }
+                     TooltipAction:FireServer(unpack(args))
+                  end
+                  
+                  task.wait(1)
+               end
+            end
+         end)
+      end
+   end,
+})
