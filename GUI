@@ -14,7 +14,7 @@ getgenv()._4LEX_TEMP_CONFIG = getgenv()._4LEX_TEMP_CONFIG or {
     ThemeColor = {15, 15, 15},
     ShowFloatingBtn = true,
     LockFloatingBtn = false,
-    FloatingPosition = UDim2.new(0, 15, 1, -60),
+    FloatingPosition = UDim2.new(0, 15, 1, -65),
     Toggles = {},
     Sliders = {},
     Dropdowns = {}
@@ -67,16 +67,16 @@ function Library:CreateWindow(options)
 
     local DEFAULT_ACCENT = Color3.fromRGB(0, 170, 255)
 
-    -- Floating Toggle Button (Bisa digeser, ukuran diperbesar, font diperbesar, fitur Lock)
+    -- Floating Toggle Button (Diperbesar ukuran & fontnya, serta mendukung Dragging)
     local FloatingBtn = Instance.new("TextButton")
     FloatingBtn.Name = "FloatingHideBtn"
-    FloatingBtn.Size = UDim2.new(0, 135, 0, 42)
+    FloatingBtn.Size = UDim2.new(0, 155, 0, 48)
     FloatingBtn.Position = Config.FloatingPosition
     FloatingBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     FloatingBtn.Text = "  👁️ Hide GUI"
     FloatingBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
     FloatingBtn.Font = Enum.Font.SourceSansBold
-    FloatingBtn.TextSize = 15
+    FloatingBtn.TextSize = 17
     FloatingBtn.TextXAlignment = Enum.TextXAlignment.Left
     FloatingBtn.Visible = Config.ShowFloatingBtn
     FloatingBtn.Parent = ScreenGui
@@ -90,7 +90,7 @@ function Library:CreateWindow(options)
     FloatingStroke.Thickness = 1
     FloatingStroke.Parent = FloatingBtn
 
-    -- Logika Dragging Floating Button
+    -- Logika Geser (Dragging) untuk Floating Button
     local isDraggingFloat = false
     local dragStartPos, startMousePos
 
@@ -913,7 +913,7 @@ function Library:CreateWindow(options)
     TCorner.CornerRadius = UDim.new(0, 4)
     TCorner.Parent = ThemeFrame
 
-    TheLabel = Instance.new("TextLabel")
+    local TheLabel = Instance.new("TextLabel")
     TheLabel.Size = UDim2.new(0.4, -10, 1, 0)
     TheLabel.Position = UDim2.new(0, 10, 0, 0)
     TheLabel.BackgroundTransparency = 1
