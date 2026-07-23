@@ -8,6 +8,9 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
+-- Target Parent Determination (CoreGui / PlayerGui)
+local ParentTarget = pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui") or PlayerGui
+
 -- Setup Global Temp Config (In-Memory RAM)
 getgenv()._4LEX_TEMP_CONFIG = getgenv()._4LEX_TEMP_CONFIG or {
     ToggleKey = "K",
@@ -21,7 +24,7 @@ getgenv()._4LEX_TEMP_CONFIG = getgenv()._4LEX_TEMP_CONFIG or {
     Dropdowns = {}
 }
 
--- Cleanup connections from previous executions (Anti Memory-Leak)
+-- Cleanup connections from previous executions (Anti Memory-Leak & Anti-Double Event)
 if getgenv()._4LEX_CONNECTIONS then
     for _, conn in ipairs(getgenv()._4LEX_CONNECTIONS) do
         if conn and conn.Connected then
@@ -49,24 +52,21 @@ function Library:CreateWindow(options)
     end
     local toggleKey = Enum.KeyCode[Config.ToggleKey] or Enum.KeyCode.K
 
-    -- Anti-Double Execute
-    local existingGui = PlayerGui:FindFirstChild(GUI_NAME)
-    if existingGui then existingGui:Destroy() end
+    -- ====================================================
+    -- FIX ANTI-DOUBLE EXECUTE (Mencegah Duplikasi GUI)
+    -- ====================================================
+    local existingGui = ParentTarget:FindFirstChild(GUI_NAME) or PlayerGui:FindFirstChild(GUI_NAME)
+    if existingGui then 
+        existingGui:Destroy() 
+    end
 
     -- ScreenGui
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = GUI_NAME
     ScreenGui.ResetOnSpawn = false
-    
-    -- ====================================================
-    -- PENAMBAHAN AGAR GUI DI PALING DEPAN (TIDAK TERTIMPA)
-    -- ====================================================
-    ScreenGui.DisplayOrder = 999999999 -- Mengatur urutan lapisan tertinggi
-    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling -- Pengaturan indeks lapisan sibling
-    
-    -- Menentukan target parent (mencoba CoreGui terlebih dahulu, jika gagal ke PlayerGui)
-    local parentTarget = pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui") or PlayerGui
-    ScreenGui.Parent = parentTarget
+    ScreenGui.DisplayOrder = 999999999
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ScreenGui.Parent = ParentTarget
 
     -- Main Sizes
     local normalSize = UDim2.new(0, 520, 0, 340)
