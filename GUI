@@ -67,10 +67,10 @@ function Library:CreateWindow(options)
 
     local DEFAULT_ACCENT = Color3.fromRGB(0, 170, 255)
 
-    -- Floating Toggle Button (Ukuran DIPERKECIL: 60x22, Teks DIPERBESAR: 16)
+    -- Floating Toggle Button (Ukuran DIPERKECIL: 50x24, Teks DIPERBESAR: 16)
     local FloatingBtn = Instance.new("TextButton")
     FloatingBtn.Name = "FloatingHideBtn"
-    FloatingBtn.Size = UDim2.new(0, 60, 0, 22)
+    FloatingBtn.Size = UDim2.new(0, 50, 0, 24)
     FloatingBtn.Position = Config.FloatingPosition
     FloatingBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     FloatingBtn.Text = "HIDE"
@@ -125,11 +125,10 @@ function Library:CreateWindow(options)
 
     UserInputService.InputEnded:Connect(StopDragging)
 
-    RunService = game:GetService("RunService")
     -- Menggunakan render step untuk kalkulasi posisi agar mulus dan aman dari bug cepat
     local connection
     connection = game:GetService("RunService").RenderStepped:Connect(function()
-        -- Jika tombol tiba-tiba di-lock saat sedang didrag, paksa hentikan drag
+        -- Jika tombol tiba-tiba di-lock saat sedang didrag, paksa hentikan drag agar tidak bug
         if Config.LockFloatingBtn and isDragging then
             isDragging = false
             Config.FloatingPosition = FloatingBtn.Position
@@ -997,3 +996,65 @@ function Library:CreateWindow(options)
 end
 
 return Library
+
+--------------------------------------------------------------------
+-- CONTOH PENGGUNAAN (MASUKKAN KE SCRIPT UTAMA ANDA, BUKAN DI LIBRARY)
+--------------------------------------------------------------------
+--[[
+local Library = require(script.Parent.Library)
+
+local Window = Library:CreateWindow({
+    Name = "My Script Hub",
+    ToggleKey = "K"
+})
+
+local MainTab = Window:CreateTab("Main")
+local PlayerTab = Window:CreateTab("Player")
+local SettingsTab = Window:CreateTab("Misc")
+
+-- 1. Toggle Element
+MainTab:CreateToggle({
+    Name = "Auto Farm",
+    CurrentValue = false,
+    Callback = function(Value)
+        print("Auto Farm:", Value)
+    end
+})
+
+-- 2. Button Element
+MainTab:CreateButton({
+    Name = "Rejoin Server",
+    Callback = function()
+        print("Rejoining...")
+    end
+})
+
+-- 3. Slider Element
+PlayerTab:CreateSlider({
+    Name = "WalkSpeed",
+    Range = {16, 250},
+    CurrentValue = 16,
+    Callback = function(Value)
+        print("WalkSpeed:", Value)
+    end
+})
+
+-- 4. Input Element
+PlayerTab:CreateInput({
+    Name = "Custom Chat",
+    PlaceholderText = "Ketik pesan...",
+    Callback = function(Text)
+        print("Input Text:", Text)
+    end
+})
+
+-- 5. Dropdown Element
+SettingsTab:CreateDropdown({
+    Name = "Select Location",
+    Options = {"Spawn", "Shop", "Boss Arena"},
+    CurrentOption = "Spawn",
+    Callback = function(Option)
+        print("Selected:", Option)
+    end
+})
+]]
