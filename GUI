@@ -12,7 +12,9 @@ getgenv()._4LEX_TEMP_CONFIG = getgenv()._4LEX_TEMP_CONFIG or {
     ToggleKey = "K",
     GuiOpacity = 0,
     ThemeColor = {15, 15, 15},
-    ShowFloatingBtn = true, -- Default aktif untuk floating button
+    ShowFloatingBtn = true,
+    LockFloatingBtn = false,
+    FloatingPosition = UDim2.new(0, 15, 1, -60),
     Toggles = {},
     Sliders = {},
     Dropdowns = {}
@@ -65,16 +67,16 @@ function Library:CreateWindow(options)
 
     local DEFAULT_ACCENT = Color3.fromRGB(0, 170, 255)
 
-    -- Floating Toggle Button (Tombol Terpisah di Kiri Bawah)
+    -- Floating Toggle Button (Bisa digeser, ukuran diperbesar, font diperbesar, fitur Lock)
     local FloatingBtn = Instance.new("TextButton")
     FloatingBtn.Name = "FloatingHideBtn"
-    FloatingBtn.Size = UDim2.new(0, 115, 0, 36)
-    FloatingBtn.Position = UDim2.new(0, 15, 1, -50)
+    FloatingBtn.Size = UDim2.new(0, 135, 0, 42)
+    FloatingBtn.Position = Config.FloatingPosition
     FloatingBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     FloatingBtn.Text = "  👁️ Hide GUI"
     FloatingBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
     FloatingBtn.Font = Enum.Font.SourceSansBold
-    FloatingBtn.TextSize = 13
+    FloatingBtn.TextSize = 15
     FloatingBtn.TextXAlignment = Enum.TextXAlignment.Left
     FloatingBtn.Visible = Config.ShowFloatingBtn
     FloatingBtn.Parent = ScreenGui
@@ -87,6 +89,35 @@ function Library:CreateWindow(options)
     FloatingStroke.Color = Color3.fromRGB(50, 50, 50)
     FloatingStroke.Thickness = 1
     FloatingStroke.Parent = FloatingBtn
+
+    -- Logika Dragging Floating Button
+    local isDraggingFloat = false
+    local dragStartPos, startMousePos
+
+    FloatingBtn.InputBegan:Connect(function(input)
+        if not Config.LockFloatingBtn and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            isDraggingFloat = true
+            dragStartPos = FloatingBtn.AbsolutePosition
+            startMousePos = input.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    isDraggingFloat = false
+                end
+            end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if isDraggingFloat and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - startMousePos
+            local newX = dragStartPos.X + delta.X
+            local newY = dragStartPos.Y + delta.Y
+            
+            FloatingBtn.Position = UDim2.new(0, newX, 0, newY)
+            Config.FloatingPosition = FloatingBtn.Position
+        end
+    end)
 
     -- Animation Logic
     local isBusy = false
@@ -116,7 +147,9 @@ function Library:CreateWindow(options)
     end
 
     FloatingBtn.MouseButton1Click:Connect(function()
-        ToggleGUI()
+        if not isDraggingFloat then
+            ToggleGUI()
+        end
     end)
 
     -- Header
@@ -704,7 +737,59 @@ function Library:CreateWindow(options)
         TweenService:Create(FTSwitchTrack, TweenInfo.new(0.15), {BackgroundColor3 = targetColor}):Play()
     end)
 
-    -- 2. Keybind Control
+    -- 2. Lock Floating Button Position Toggle
+    local LockToggleFrame = Instance.new("Frame")
+    LockToggleFrame.Size = UDim2.new(1, -5, 0, 36)
+    LockToggleFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+    LockToggleFrame.Parent = SettingPage
+
+    local LTCorner = Instance.new("UICorner")
+    LTCorner.CornerRadius = UDim.new(0, 4)
+    LTCorner.Parent = LockToggleFrame
+
+    local LTLabel = Instance.new("TextLabel")
+    LTLabel.Size = UDim2.new(1, -65, 1, 0)
+    LTLabel.Position = UDim2.new(0, 10, 0, 0)
+    LTLabel.BackgroundTransparency = 1
+    LTLabel.Text = "Lock Floating Button Position"
+    LTLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+    LTLabel.Font = Enum.Font.SourceSans
+    LTLabel.TextSize = 14
+    LTLabel.TextXAlignment = Enum.TextXAlignment.Left
+    LTLabel.Parent = LockToggleFrame
+
+    local LTSwitchTrack = Instance.new("TextButton")
+    LTSwitchTrack.Size = UDim2.new(0, 42, 0, 22)
+    LTSwitchTrack.Position = UDim2.new(1, -50, 0.5, -11)
+    LTSwitchTrack.BackgroundColor3 = Config.LockFloatingBtn and DEFAULT_ACCENT or Color3.fromRGB(50, 50, 50)
+    LTSwitchTrack.Text = ""
+    LTSwitchTrack.AutoButtonColor = false
+    LTSwitchTrack.Parent = LockToggleFrame
+
+    local LTTrackCorner = Instance.new("UICorner")
+    LTTrackCorner.CornerRadius = UDim.new(1, 0)
+    LTTrackCorner.Parent = LTSwitchTrack
+
+    local LTSwitchKnob = Instance.new("Frame")
+    LTSwitchKnob.Size = UDim2.new(0, 16, 0, 16)
+    LTSwitchKnob.Position = Config.LockFloatingBtn and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+    LTSwitchKnob.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+    LTSwitchKnob.Parent = LTSwitchTrack
+
+    local LTKnobCorner = Instance.new("UICorner")
+    LTKnobCorner.CornerRadius = UDim.new(1, 0)
+    LTKnobCorner.Parent = LTSwitchKnob
+
+    LTSwitchTrack.MouseButton1Click:Connect(function()
+        Config.LockFloatingBtn = not Config.LockFloatingBtn
+        
+        local targetPos = Config.LockFloatingBtn and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+        local targetColor = Config.LockFloatingBtn and DEFAULT_ACCENT or Color3.fromRGB(50, 50, 50)
+        TweenService:Create(LTSwitchKnob, TweenInfo.new(0.15), {Position = targetPos}):Play()
+        TweenService:Create(LTSwitchTrack, TweenInfo.new(0.15), {BackgroundColor3 = targetColor}):Play()
+    end)
+
+    -- 3. Keybind Control
     local KeybindFrame = Instance.new("Frame")
     KeybindFrame.Size = UDim2.new(1, -5, 0, 36)
     KeybindFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
@@ -758,7 +843,7 @@ function Library:CreateWindow(options)
         end
     end)
 
-    -- 3. GUI Transparency Slider
+    -- 4. GUI Transparency Slider
     local OpacityFrame = Instance.new("Frame")
     OpacityFrame.Size = UDim2.new(1, -5, 0, 48)
     OpacityFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
@@ -818,7 +903,7 @@ function Library:CreateWindow(options)
         end
     end)
 
-    -- 4. Theme Preset Selector
+    -- 5. Theme Preset Selector
     local ThemeFrame = Instance.new("Frame")
     ThemeFrame.Size = UDim2.new(1, -5, 0, 36)
     ThemeFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
@@ -828,16 +913,16 @@ function Library:CreateWindow(options)
     TCorner.CornerRadius = UDim.new(0, 4)
     TCorner.Parent = ThemeFrame
 
-    local TLabel = Instance.new("TextLabel")
-    TLabel.Size = UDim2.new(0.4, -10, 1, 0)
-    TLabel.Position = UDim2.new(0, 10, 0, 0)
-    TLabel.BackgroundTransparency = 1
-    TLabel.Text = "Theme Presets"
-    TLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-    TLabel.Font = Enum.Font.SourceSans
-    TLabel.TextSize = 14
-    TLabel.TextXAlignment = Enum.TextXAlignment.Left
-    TLabel.Parent = ThemeFrame
+    TheLabel = Instance.new("TextLabel")
+    TheLabel.Size = UDim2.new(0.4, -10, 1, 0)
+    TheLabel.Position = UDim2.new(0, 10, 0, 0)
+    TheLabel.BackgroundTransparency = 1
+    TheLabel.Text = "Theme Presets"
+    TheLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+    TheLabel.Font = Enum.Font.SourceSans
+    TheLabel.TextSize = 14
+    TheLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TheLabel.Parent = ThemeFrame
 
     local themes = {
         {Name = "Dark", Color = Color3.fromRGB(15, 15, 15)},
