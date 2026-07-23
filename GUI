@@ -13,8 +13,7 @@ getgenv()._4LEX_TEMP_CONFIG = getgenv()._4LEX_TEMP_CONFIG or {
     GuiOpacity = 0,
     ThemeColor = {15, 15, 15},
     Toggles = {},
-    Sliders = {},
-    Keybinds = {}
+    Sliders = {}
 }
 
 local Config = getgenv()._4LEX_TEMP_CONFIG
@@ -272,7 +271,7 @@ function Library:CreateWindow(options)
 
         if #tabs == 1 then SwitchToThisTab() end
 
-        -- Tab Interactive Elements (Rayfield Style)
+        -- Interactive Elements
         local TabElements = {}
 
         function TabElements:CreateToggle(opts)
@@ -490,68 +489,6 @@ function Library:CreateWindow(options)
             end)
         end
 
-        function TabElements:CreateKeybind(opts)
-            local scriptName = opts.Name or "Keybind"
-            local defaultKey = opts.CurrentKeybind or Enum.KeyCode.E
-            local callback = opts.Callback or function() end
-
-            local Frame = Instance.new("Frame")
-            Frame.Size = UDim2.new(1, -5, 0, 36)
-            Frame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
-            Frame.Parent = Page
-
-            local Corner = Instance.new("UICorner")
-            Corner.CornerRadius = UDim.new(0, 4)
-            Corner.Parent = Frame
-
-            local Label = Instance.new("TextLabel")
-            Label.Size = UDim2.new(0.5, -10, 1, 0)
-            Label.Position = UDim2.new(0, 10, 0, 0)
-            Label.BackgroundTransparency = 1
-            Label.Text = scriptName
-            Label.TextColor3 = Color3.fromRGB(220, 220, 220)
-            Label.Font = Enum.Font.SourceSans
-            Label.TextSize = 14
-            Label.TextXAlignment = Enum.TextXAlignment.Left
-            Label.Parent = Frame
-
-            local savedKeyName = Config.Keybinds[scriptName] or defaultKey.Name
-            local currentKey = Enum.KeyCode[savedKeyName] or defaultKey
-
-            local KeyBtn = Instance.new("TextButton")
-            KeyBtn.Size = UDim2.new(0, 110, 0, 26)
-            KeyBtn.Position = UDim2.new(1, -118, 0.5, -13)
-            KeyBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-            KeyBtn.Text = currentKey.Name
-            KeyBtn.TextColor3 = DEFAULT_ACCENT
-            KeyBtn.Font = Enum.Font.SourceSansBold
-            KeyBtn.TextSize = 13
-            KeyBtn.Parent = Frame
-
-            local KeyCorner = Instance.new("UICorner")
-            KeyCorner.CornerRadius = UDim.new(0, 4)
-            KeyCorner.Parent = KeyBtn
-
-            local binding = false
-            KeyBtn.MouseButton1Click:Connect(function()
-                binding = true
-                KeyBtn.Text = "Tekan Tombol..."
-            end)
-
-            UserInputService.InputBegan:Connect(function(input, gpe)
-                if binding and input.UserInputType == Enum.UserInputType.Keyboard then
-                    KeyBtn.Text = input.KeyCode.Name
-                    binding = false
-                    Config.Keybinds[scriptName] = input.KeyCode.Name
-                    callback(input.KeyCode)
-                elseif not gpe and input.UserInputType == Enum.UserInputType.Keyboard then
-                    if scriptName == "Hide/Show GUI Keybind" and input.KeyCode == toggleKey then
-                        ToggleGUI()
-                    end
-                end
-            end)
-        end
-
         return TabElements
     end
 
@@ -564,9 +501,6 @@ function Library:CreateWindow(options)
         SettingPage.Visible = true
     end)
 
-    -- Elements generator khusus Setting Page
-    local SettingsTab = {Page = SettingPage}
-    
     -- Register System Hide Keybind
     local KeybindFrame = Instance.new("Frame")
     KeybindFrame.Size = UDim2.new(1, -5, 0, 36)
