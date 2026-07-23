@@ -67,17 +67,18 @@ function Library:CreateWindow(options)
 
     local DEFAULT_ACCENT = Color3.fromRGB(0, 170, 255)
 
-    -- Floating Toggle Button (Ukuran DIPERKECIL: 70x24, Teks DIPERBESAR: 15)
+    -- Floating Toggle Button (Ukuran DIPERKECIL: 60x22, Teks DIPERBESAR: 16)
     local FloatingBtn = Instance.new("TextButton")
     FloatingBtn.Name = "FloatingHideBtn"
-    FloatingBtn.Size = UDim2.new(0, 70, 0, 24)
+    FloatingBtn.Size = UDim2.new(0, 60, 0, 22)
     FloatingBtn.Position = Config.FloatingPosition
     FloatingBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     FloatingBtn.Text = "HIDE"
     FloatingBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     FloatingBtn.Font = Enum.Font.SourceSansBold
-    FloatingBtn.TextSize = 15
+    FloatingBtn.TextSize = 16
     FloatingBtn.Visible = Config.ShowFloatingBtn
+    FloatingBtn.Active = true
     FloatingBtn.Parent = ScreenGui
 
     local FloatingCorner = Instance.new("UICorner")
@@ -89,39 +90,54 @@ function Library:CreateWindow(options)
     FloatingStroke.Thickness = 1
     FloatingStroke.Parent = FloatingBtn
 
-    -- Logika Geser (Dragging) & Perbaikan Bug Klik Cepat / Terkunci
+    -- Logika Geser (Dragging) & Fix Bug Lock Posisi saat Geser Cepat
     local isDragging = false
     local dragInput, dragStart, startPos
     local hasMoved = false
 
     FloatingBtn.InputBegan:Connect(function(input)
-        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-            -- Jika posisi terkunci, abaikan proses drag sama sekali agar tombol tetap murni bisa diklik
-            if not Config.LockFloatingBtn then
-                isDragging = true
-                hasMoved = false
-                dragStart = input.Position
-                startPos = FloatingBtn.Position
-
-                input.Changed:Connect(function()
-                    if input.UserInputState == Enum.UserInputState.End then
-                        isDragging = false
-                    end
-                end)
-            end
+        if not Config.LockFloatingBtn and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            isDragging = true
+            hasMoved = false
+            dragStart = input.Position
+            startPos = FloatingBtn.Position
         end
     end)
 
-    FloatingBtn.InputChanged:Connect(function(input)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isDragging = false
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             dragInput = input
         end
     end)
 
-    UserInputService.InputChanged:Connect(function(input)
-        if isDragging and input == dragInput and not Config.LockFloatingBtn then
-            local delta = input.Position - dragStart
-            if delta.Magnitude > 3 then
+    local function StopDragging()
+        if isDragging then
+            isDragging = false
+            Config.FloatingPosition = FloatingBtn.Position
+        end
+    end
+
+    UserInputService.InputEnded:Connect(StopDragging)
+
+    RunService = game:GetService("RunService")
+    -- Menggunakan render step untuk kalkulasi posisi agar mulus dan aman dari bug cepat
+    local connection
+    connection = game:GetService("RunService").RenderStepped:Connect(function()
+        -- Jika tombol tiba-tiba di-lock saat sedang didrag, paksa hentikan drag
+        if Config.LockFloatingBtn and isDragging then
+            isDragging = false
+            Config.FloatingPosition = FloatingBtn.Position
+        end
+
+        if isDragging and dragInput and not Config.LockFloatingBtn then
+            local delta = dragInput.Position - dragStart
+            if delta.Magnitude > 2 then
                 hasMoved = true
             end
             FloatingBtn.Position = UDim2.new(
@@ -161,12 +177,11 @@ function Library:CreateWindow(options)
         isBusy = false
     end
 
-    -- Tombol dijamin responsif klik meskipun digeser cepat atau dikunci
     FloatingBtn.MouseButton1Click:Connect(function()
         if not hasMoved then
             ToggleGUI()
         end
-        hasMoved = false -- Reset status geser setelah klik selesai
+        hasMoved = false
     end)
 
     -- Header
@@ -961,7 +976,7 @@ function Library:CreateWindow(options)
         TBtn.TextSize = 11
         TBtn.Parent = ThemeFrame
 
-    local TBtnCorner = Instance.new("UICorner")
+        local TBtnCorner = Instance.new("UICorner")
         TBtnCorner.CornerRadius = UDim.new(0, 4)
         TBtnCorner.Parent = TBtn
 
