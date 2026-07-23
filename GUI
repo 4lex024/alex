@@ -213,8 +213,9 @@ function Library:CreateWindow(options)
     local function ApplyOpacity(value)
         local alpha = value / 100
         MainFrame.BackgroundTransparency = alpha
-        TabContainer.BackgroundTransparency = math.clamp(alpha + 0.1, 0, 1)
-        ContentContainer.BackgroundTransparency = math.clamp(alpha + 0.1, 0, 1)
+        TabContainer.BackgroundTransparency = math.clamp(alpha + 0.05, 0, 1)
+        ContentContainer.BackgroundTransparency = math.clamp(alpha + 0.05, 0, 1)
+        Config.GuiOpacity = value
     end
 
     local tabs = {}
@@ -492,7 +493,6 @@ function Library:CreateWindow(options)
             end)
         end
 
-        -- DROPDOWN COMPONENT
         function TabElements:CreateDropdown(opts)
             local dropName = opts.Name or "Dropdown"
             local options = opts.Options or {}
@@ -575,7 +575,6 @@ function Library:CreateWindow(options)
                         Config.Dropdowns[dropName] = opt
                         DropBtn.Text = currentOption .. "  ▼"
                         
-                        -- Animate Close
                         isOpen = false
                         TweenService:Create(DropFrame, TweenInfo.new(0.2), {Size = UDim2.new(1, -5, 0, 36)}):Play()
                         TweenService:Create(OptionHolder, TweenInfo.new(0.2), {Size = UDim2.new(1, -20, 0, 0)}):Play()
@@ -603,7 +602,9 @@ function Library:CreateWindow(options)
         return TabElements
     end
 
-    -- Setting Page Setup Internal
+    ----------------------------------------------------
+    -- SETTING PAGE SETUP (FIXED & FULL CONTROL)
+    ----------------------------------------------------
     local SettingPage = CreatePage("Settings")
     table.insert(tabs, {Button = nil, Page = SettingPage})
 
@@ -612,7 +613,7 @@ function Library:CreateWindow(options)
         SettingPage.Visible = true
     end)
 
-    -- Register System Hide Keybind
+    -- 1. Keybind Control
     local KeybindFrame = Instance.new("Frame")
     KeybindFrame.Size = UDim2.new(1, -5, 0, 36)
     KeybindFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
@@ -666,7 +667,110 @@ function Library:CreateWindow(options)
         end
     end)
 
-    -- Apply Saved Configs
+    -- 2. GUI Transparency Slider
+    local OpacityFrame = Instance.new("Frame")
+    OpacityFrame.Size = UDim2.new(1, -5, 0, 48)
+    OpacityFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+    OpacityFrame.Parent = SettingPage
+
+    local OCorner = Instance.new("UICorner")
+    OCorner.CornerRadius = UDim.new(0, 4)
+    OCorner.Parent = OpacityFrame
+
+    local OLabel = Instance.new("TextLabel")
+    OLabel.Size = UDim2.new(1, -20, 0, 20)
+    OLabel.Position = UDim2.new(0, 10, 0, 4)
+    OLabel.BackgroundTransparency = 1
+    OLabel.Text = "GUI Transparency: " .. tostring(Config.GuiOpacity) .. "%"
+    OLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+    OLabel.Font = Enum.Font.SourceSans
+    OLabel.TextSize = 14
+    OLabel.TextXAlignment = Enum.TextXAlignment.Left
+    OLabel.Parent = OpacityFrame
+
+    local OBar = Instance.new("Frame")
+    OBar.Size = UDim2.new(1, -20, 0, 6)
+    OBar.Position = UDim2.new(0, 10, 0, 30)
+    OBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    OBar.Parent = OpacityFrame
+
+    local OFill = Instance.new("Frame")
+    OFill.Size = UDim2.new(Config.GuiOpacity / 80, 0, 1, 0)
+    OFill.BackgroundColor3 = DEFAULT_ACCENT
+    OFill.Parent = OBar
+
+    local draggingO = false
+    local function updateOpacity(input)
+        local pos = math.clamp((input.Position.X - OBar.AbsolutePosition.X) / OBar.AbsoluteSize.X, 0, 1)
+        local val = math.floor(pos * 80) -- Max 80% transparansi agar UI tidak hilang total
+        OFill.Size = UDim2.new(pos, 0, 1, 0)
+        OLabel.Text = "GUI Transparency: " .. tostring(val) .. "%"
+        ApplyOpacity(val)
+    end
+
+    OBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then draggingO = true updateOpacity(input) end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then draggingO = false end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if draggingO and input.UserInputType == Enum.UserInputType.MouseMovement then updateOpacity(input) end
+    end)
+
+    -- 3. Theme Preset Selector
+    local ThemeFrame = Instance.new("Frame")
+    ThemeFrame.Size = UDim2.new(1, -5, 0, 36)
+    ThemeFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+    ThemeFrame.Parent = SettingPage
+
+    local TCorner = Instance.new("UICorner")
+    TCorner.CornerRadius = UDim.new(0, 4)
+    TCorner.Parent = ThemeFrame
+
+    local TLabel = Instance.new("TextLabel")
+    TLabel.Size = UDim2.new(0.4, -10, 1, 0)
+    TLabel.Position = UDim2.new(0, 10, 0, 0)
+    TLabel.BackgroundTransparency = 1
+    TLabel.Text = "Theme Presets"
+    TLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+    TLabel.Font = Enum.Font.SourceSans
+    TLabel.TextSize = 14
+    TLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TLabel.Parent = ThemeFrame
+
+    local themes = {
+        {Name = "Dark", Color = Color3.fromRGB(15, 15, 15)},
+        {Name = "Blue", Color = Color3.fromRGB(15, 20, 35)},
+        {Name = "Red", Color = Color3.fromRGB(35, 15, 15)},
+        {Name = "Purple", Color = Color3.fromRGB(25, 15, 35)}
+    }
+
+    local btnOffsetX = -10
+    for i = #themes, 1, -1 do
+        local t = themes[i]
+        local TBtn = Instance.new("TextButton")
+        TBtn.Size = UDim2.new(0, 50, 0, 24)
+        TBtn.Position = UDim2.new(1, btnOffsetX - 50, 0.5, -12)
+        TBtn.BackgroundColor3 = t.Color
+        TBtn.Text = t.Name
+        TBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+        TBtn.Font = Enum.Font.SourceSansBold
+        TBtn.TextSize = 11
+        TBtn.Parent = ThemeFrame
+
+        local TBtnCorner = Instance.new("UICorner")
+        TBtnCorner.CornerRadius = UDim.new(0, 4)
+        TBtnCorner.Parent = TBtn
+
+        TBtn.MouseButton1Click:Connect(function()
+            UpdateGUITheme(t.Color)
+        end)
+
+        btnOffsetX = btnOffsetX - 55
+    end
+
+    -- Apply Initial Config
     UpdateGUITheme(Color3.fromRGB(Config.ThemeColor[1], Config.ThemeColor[2], Config.ThemeColor[3]))
     ApplyOpacity(Config.GuiOpacity)
 
