@@ -129,24 +129,25 @@ function Library:CreateWindow(options)
     Title.BackgroundTransparency = 1
     Title.Parent = Header
 
-    -- Close Button
+    -- Close Button (FIXED: Ukuran & Font Size diperbesar)
     local CloseBtn = Instance.new("TextButton")
-    CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-    CloseBtn.Position = UDim2.new(1, -38, 0.5, -15)
+    CloseBtn.Size = UDim2.new(0, 32, 0, 32)
+    CloseBtn.Position = UDim2.new(1, -38, 0.5, -16)
     CloseBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     CloseBtn.Text = "X"
     CloseBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
     CloseBtn.Font = Enum.Font.SourceSansBold
+    CloseBtn.TextSize = 18
     CloseBtn.Parent = Header
 
     local CloseCorner = Instance.new("UICorner")
     CloseCorner.CornerRadius = UDim.new(0, 6)
     CloseCorner.Parent = CloseBtn
 
-    -- Setting Button
+    -- Setting Button (FIXED: Posisi disesuaikan dengan CloseBtn)
     local SettingBtn = Instance.new("TextButton")
-    SettingBtn.Size = UDim2.new(0, 30, 0, 30)
-    SettingBtn.Position = UDim2.new(1, -74, 0.5, -15)
+    SettingBtn.Size = UDim2.new(0, 32, 0, 32)
+    SettingBtn.Position = UDim2.new(1, -76, 0.5, -16)
     SettingBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     SettingBtn.Text = "⚙️"
     SettingBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -603,7 +604,7 @@ function Library:CreateWindow(options)
     end
 
     ----------------------------------------------------
-    -- SETTING PAGE SETUP (FIXED & FULL CONTROL)
+    -- SETTING PAGE SETUP
     ----------------------------------------------------
     local SettingPage = CreatePage("Settings")
     table.insert(tabs, {Button = nil, Page = SettingPage})
@@ -702,7 +703,7 @@ function Library:CreateWindow(options)
     local draggingO = false
     local function updateOpacity(input)
         local pos = math.clamp((input.Position.X - OBar.AbsolutePosition.X) / OBar.AbsoluteSize.X, 0, 1)
-        local val = math.floor(pos * 80) -- Max 80% transparansi agar UI tidak hilang total
+        local val = math.floor(pos * 80)
         OFill.Size = UDim2.new(pos, 0, 1, 0)
         OLabel.Text = "GUI Transparency: " .. tostring(val) .. "%"
         ApplyOpacity(val)
