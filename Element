@@ -1,0 +1,83 @@
+1. Toggle
+
+Digunakan untuk mengontrol status **ON / OFF** (nilai boolean `true` atau `false`).
+
+ 
+local Toggle = Tab:CreateToggle({
+    Name = "Toggle Example",
+    CurrentValue = false, -- Nilai awal saat UI dimuat (true/false)
+    Callback = function(Value)
+        -- Fungsi ini akan berjalan setiap kali status Toggle berubah
+        -- Variabel (Value) berisi nilai boolean: true (ON) atau false (OFF)
+        print("Status Toggle:", Value)
+    end,
+})
+
+
+
+2. Button
+
+Digunakan untuk mengeksekusi sebuah aksi secara instan hanya dengan **satu kali klik**.
+
+ 
+local Button = Tab:CreateButton({
+    Name = "Button Example",
+    Callback = function()
+        -- Fungsi ini akan berjalan 1x setiap kali tombol diklik
+        print("Tombol berhasil diklik!")
+    end,
+})
+
+
+
+3. Slider
+
+Digunakan untuk memilih nilai numerik di dalam **rentang angka** tertentu (minimal dan maksimal).
+
+ 
+local Slider = Tab:CreateSlider({
+    Name = "Slider Example",
+    Range = {16, 200}, -- Nilai minimum {16} dan maksimum {200}
+    CurrentValue = 16, -- Nilai default saat UI pertama kali terbuka
+    Callback = function(Value)
+        -- Fungsi ini berjalan saat slider digeser atau nilainya berubah
+        -- Variabel (Value) berisi angka sesuai posisi slider
+        print("Nilai Slider saat ini:", Value)
+    end,
+})
+
+
+
+4. Input (TextBox)
+
+Digunakan untuk menerima **input teks atau angka kustom** yang diketik langsung oleh pengguna.
+
+
+local Input = Tab:CreateInput({
+    Name = "Input Example",
+    PlaceholderText = "Ketik di sini...", -- Teks samar sebagai panduan pengisian
+    Callback = function(Text)
+        -- Fungsi ini berjalan ketika pengguna menekan tombol Enter pada kotak input
+        -- Variabel (Text) berisi string/teks yang dimasukkan pengguna
+        print("Teks yang dimasukkan:", Text)
+    end,
+})
+
+
+
+5. Dropdown
+
+Digunakan untuk memberikan **daftar pilihan** (list) agar pengguna dapat memilih salah satu opsi.
+
+local Dropdown = Tab:CreateDropdown({
+    Name = "Dropdown Example",
+    Options = {"Opsi 1", "Opsi 2", "Opsi 3"}, -- Daftar pilihan dalam bentuk Array/Table
+    CurrentOption = "Opsi 1", -- Opsi default yang terpilih
+    Callback = function(Option)
+        -- Fungsi ini berjalan saat pengguna memilih salah satu item dari daftar
+        -- Variabel (Option) berisi nama opsi yang dipilih dalam bentuk string
+        print("Opsi terpilih:", Option)
+    end,
+})
+
+
