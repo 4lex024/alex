@@ -661,7 +661,6 @@ function Library:CreateWindow(options)
             OptionHolder.BackgroundTransparency = 1
             OptionHolder.BorderSizePixel = 0
             OptionHolder.ScrollBarThickness = 2
-            OptionHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
             OptionHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
             OptionHolder.Parent = DropFrame
 
@@ -886,7 +885,7 @@ function Library:CreateWindow(options)
             binding = false
             toggleKey = input.KeyCode
             Config.ToggleKey = input.KeyCode.Name
-        elseif not gpe and input.UserInputType == Enum.UserInputType.Keyboard then
+        elseif not gpe and not UserInputService:GetFocusedTextBox() and input.UserInputType == Enum.UserInputType.Keyboard then
             if input.KeyCode == toggleKey then
                 ToggleGUI()
             end
@@ -921,16 +920,17 @@ function Library:CreateWindow(options)
     OBar.Parent = OpacityFrame
 
     local OFill = Instance.new("Frame")
-    OFill.Size = UDim2.new(Config.GuiOpacity / 80, 0, 1, 0)
+    OFill.Size = UDim2.new(math.clamp(Config.GuiOpacity / 100, 0, 1), 0, 1, 0)
     OFill.BackgroundColor3 = DEFAULT_ACCENT
     OFill.Parent = OBar
 
     local draggingO = false
     local function updateOpacity(input)
         local pos = math.clamp((input.Position.X - OBar.AbsolutePosition.X) / OBar.AbsoluteSize.X, 0, 1)
-        local val = math.floor(pos * 80)
+        local val = math.floor(pos * 100)
         OFill.Size = UDim2.new(pos, 0, 1, 0)
         OLabel.Text = "GUI Transparency: " .. tostring(val) .. "%"
+        Config.GuiOpacity = val
         ApplyOpacity(val)
     end
 
