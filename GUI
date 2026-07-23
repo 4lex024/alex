@@ -3,6 +3,7 @@ local Library = {}
 -- Services
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -19,6 +20,21 @@ getgenv()._4LEX_TEMP_CONFIG = getgenv()._4LEX_TEMP_CONFIG or {
     Sliders = {},
     Dropdowns = {}
 }
+
+-- Cleanup connections from previous executions (Anti Memory-Leak)
+if getgenv()._4LEX_CONNECTIONS then
+    for _, conn in ipairs(getgenv()._4LEX_CONNECTIONS) do
+        if conn and conn.Connected then
+            conn:Disconnect()
+        end
+    end
+end
+getgenv()._4LEX_CONNECTIONS = {}
+
+local function TrackConnection(conn)
+    table.insert(getgenv()._4LEX_CONNECTIONS, conn)
+    return conn
+end
 
 local Config = getgenv()._4LEX_TEMP_CONFIG
 local GUI_NAME = "4lex_024_GUI"
@@ -67,7 +83,7 @@ function Library:CreateWindow(options)
 
     local DEFAULT_ACCENT = Color3.fromRGB(0, 170, 255)
 
-    -- Floating Toggle Button (Ukuran DIPERKECIL: 60x22, Teks DIPERBESAR: 16)
+    -- Floating Toggle Button
     local FloatingBtn = Instance.new("TextButton")
     FloatingBtn.Name = "FloatingHideBtn"
     FloatingBtn.Size = UDim2.new(0, 60, 0, 22)
@@ -90,31 +106,19 @@ function Library:CreateWindow(options)
     FloatingStroke.Thickness = 1
     FloatingStroke.Parent = FloatingBtn
 
-    -- Logika Geser (Dragging) & Fix Bug Lock Posisi saat Geser Cepat
+    -- Logika Drag Floating Button
     local isDragging = false
     local dragInput, dragStart, startPos
     local hasMoved = false
 
-    FloatingBtn.InputBegan:Connect(function(input)
+    TrackConnection(FloatingBtn.InputBegan:Connect(function(input)
         if not Config.LockFloatingBtn and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
             isDragging = true
             hasMoved = false
             dragStart = input.Position
             startPos = FloatingBtn.Position
         end
-    end)
-
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            isDragging = false
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
+    end))
 
     local function StopDragging()
         if isDragging then
@@ -123,16 +127,21 @@ function Library:CreateWindow(options)
         end
     end
 
-    UserInputService.InputEnded:Connect(StopDragging)
+    TrackConnection(UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            StopDragging()
+        end
+    end))
 
-    RunService = game:GetService("RunService")
-    -- Menggunakan render step untuk kalkulasi posisi agar mulus dan aman dari bug cepat
-    local connection
-    connection = game:GetService("RunService").RenderStepped:Connect(function()
-        -- Jika tombol tiba-tiba di-lock saat sedang didrag, paksa hentikan drag
+    TrackConnection(UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end))
+
+    TrackConnection(RunService.RenderStepped:Connect(function()
         if Config.LockFloatingBtn and isDragging then
-            isDragging = false
-            Config.FloatingPosition = FloatingBtn.Position
+            StopDragging()
         end
 
         if isDragging and dragInput and not Config.LockFloatingBtn then
@@ -148,7 +157,7 @@ function Library:CreateWindow(options)
             )
             Config.FloatingPosition = FloatingBtn.Position
         end
-    end)
+    end))
 
     -- Animation Logic
     local isBusy = false
@@ -177,12 +186,12 @@ function Library:CreateWindow(options)
         isBusy = false
     end
 
-    FloatingBtn.MouseButton1Click:Connect(function()
+    TrackConnection(FloatingBtn.MouseButton1Click:Connect(function()
         if not hasMoved then
             ToggleGUI()
         end
         hasMoved = false
-    end)
+    end))
 
     -- Header
     local Header = Instance.new("Frame")
@@ -258,7 +267,7 @@ function Library:CreateWindow(options)
     Divider.BorderSizePixel = 0
     Divider.Parent = MainFrame
 
-    CloseBtn.MouseButton1Click:Connect(function() ToggleGUI(false) end)
+    TrackConnection(CloseBtn.MouseButton1Click:Connect(function() ToggleGUI(false) end))
 
     -- Body Container
     local Body = Instance.new("Frame")
@@ -364,12 +373,11 @@ function Library:CreateWindow(options)
             TabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         end
 
-        TabBtn.MouseButton1Click:Connect(SwitchToThisTab)
+        TrackConnection(TabBtn.MouseButton1Click:Connect(SwitchToThisTab))
         table.insert(tabs, {Button = TabBtn, Page = Page})
 
         if #tabs == 1 then SwitchToThisTab() end
 
-        -- Interactive Elements
         local TabElements = {}
 
         function TabElements:CreateToggle(opts)
@@ -430,12 +438,12 @@ function Library:CreateWindow(options)
             UpdateToggleVisuals(enabled)
             if enabled then task.spawn(function() callback(true) end) end
 
-            SwitchTrack.MouseButton1Click:Connect(function()
+            TrackConnection(SwitchTrack.MouseButton1Click:Connect(function()
                 enabled = not enabled
                 Config.Toggles[text] = enabled
                 UpdateToggleVisuals(enabled)
                 callback(enabled)
-            end)
+            end))
         end
 
         function TabElements:CreateButton(opts)
@@ -476,7 +484,7 @@ function Library:CreateWindow(options)
             BtnCorner.CornerRadius = UDim.new(1, 0)
             BtnCorner.Parent = Btn
 
-            Btn.MouseButton1Click:Connect(callback)
+            TrackConnection(Btn.MouseButton1Click:Connect(callback))
         end
 
         function TabElements:CreateSlider(opts)
@@ -495,7 +503,8 @@ function Library:CreateWindow(options)
             Corner.CornerRadius = UDim.new(0, 4)
             Corner.Parent = SliderFrame
 
-            local currentValue = Config.Sliders[scriptName] or default
+            local rawValue = Config.Sliders[scriptName] or default
+            local currentValue = math.clamp(rawValue, min, max)
 
             local Label = Instance.new("TextLabel")
             Label.Size = UDim2.new(1, -20, 0, 20)
@@ -531,24 +540,24 @@ function Library:CreateWindow(options)
                 callback(value)
             end
 
-            Bar.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then 
+            TrackConnection(Bar.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
                     dragging = true 
                     MainFrame.Draggable = false 
                     update(input) 
                 end
-            end)
-            UserInputService.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 and dragging then 
+            end))
+            TrackConnection(UserInputService.InputEnded:Connect(function(input)
+                if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and dragging then 
                     dragging = false 
                     MainFrame.Draggable = true 
                 end
-            end)
-            UserInputService.InputChanged:Connect(function(input)
-                if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then 
+            end))
+            TrackConnection(UserInputService.InputChanged:Connect(function(input)
+                if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then 
                     update(input) 
                 end
-            end)
+            end))
         end
 
         function TabElements:CreateInput(opts)
@@ -591,9 +600,9 @@ function Library:CreateWindow(options)
             InputCorner.CornerRadius = UDim.new(0, 4)
             InputCorner.Parent = InputBox
 
-            InputBox.FocusLost:Connect(function(enterPressed)
+            TrackConnection(InputBox.FocusLost:Connect(function(enterPressed)
                 if enterPressed then callback(InputBox.Text) end
-            end)
+            end))
         end
 
         function TabElements:CreateDropdown(opts)
@@ -673,7 +682,7 @@ function Library:CreateWindow(options)
                     OptCorner.CornerRadius = UDim.new(0, 4)
                     OptCorner.Parent = OptBtn
 
-                    OptBtn.MouseButton1Click:Connect(function()
+                    TrackConnection(OptBtn.MouseButton1Click:Connect(function()
                         currentOption = opt
                         Config.Dropdowns[dropName] = opt
                         DropBtn.Text = currentOption .. "  ▼"
@@ -684,14 +693,14 @@ function Library:CreateWindow(options)
 
                         RefreshDropdown()
                         callback(opt)
-                    end)
+                    end))
                 end
             end
 
             RefreshDropdown()
             if Config.Dropdowns[dropName] then task.spawn(function() callback(currentOption) end) end
 
-            DropBtn.MouseButton1Click:Connect(function()
+            TrackConnection(DropBtn.MouseButton1Click:Connect(function()
                 isOpen = not isOpen
                 local targetHeight = isOpen and math.min(#options * 28 + 45, 150) or 36
                 local holderHeight = isOpen and (targetHeight - 45) or 0
@@ -699,7 +708,7 @@ function Library:CreateWindow(options)
                 DropBtn.Text = currentOption .. (isOpen and "  ▲" or "  ▼")
                 TweenService:Create(DropFrame, TweenInfo.new(0.2), {Size = UDim2.new(1, -5, 0, targetHeight)}):Play()
                 TweenService:Create(OptionHolder, TweenInfo.new(0.2), {Size = UDim2.new(1, -20, 0, holderHeight)}):Play()
-            end)
+            end))
         end
 
         return TabElements
@@ -711,10 +720,10 @@ function Library:CreateWindow(options)
     local SettingPage = CreatePage("Settings")
     table.insert(tabs, {Button = nil, Page = SettingPage})
 
-    SettingBtn.MouseButton1Click:Connect(function()
+    TrackConnection(SettingBtn.MouseButton1Click:Connect(function()
         HideAllPages()
         SettingPage.Visible = true
-    end)
+    end))
 
     -- 1. Floating Hide Button Toggle
     local FloatToggleFrame = Instance.new("Frame")
@@ -759,7 +768,7 @@ function Library:CreateWindow(options)
     FTKnobCorner.CornerRadius = UDim.new(1, 0)
     FTKnobCorner.Parent = FTSwitchKnob
 
-    FTSwitchTrack.MouseButton1Click:Connect(function()
+    TrackConnection(FTSwitchTrack.MouseButton1Click:Connect(function()
         Config.ShowFloatingBtn = not Config.ShowFloatingBtn
         FloatingBtn.Visible = Config.ShowFloatingBtn
         
@@ -767,7 +776,7 @@ function Library:CreateWindow(options)
         local targetColor = Config.ShowFloatingBtn and DEFAULT_ACCENT or Color3.fromRGB(50, 50, 50)
         TweenService:Create(FTSwitchKnob, TweenInfo.new(0.15), {Position = targetPos}):Play()
         TweenService:Create(FTSwitchTrack, TweenInfo.new(0.15), {BackgroundColor3 = targetColor}):Play()
-    end)
+    end))
 
     -- 2. Lock Floating Button Position Toggle
     local LockToggleFrame = Instance.new("Frame")
@@ -812,14 +821,14 @@ function Library:CreateWindow(options)
     LTKnobCorner.CornerRadius = UDim.new(1, 0)
     LTKnobCorner.Parent = LTSwitchKnob
 
-    LTSwitchTrack.MouseButton1Click:Connect(function()
+    TrackConnection(LTSwitchTrack.MouseButton1Click:Connect(function()
         Config.LockFloatingBtn = not Config.LockFloatingBtn
         
         local targetPos = Config.LockFloatingBtn and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
         local targetColor = Config.LockFloatingBtn and DEFAULT_ACCENT or Color3.fromRGB(50, 50, 50)
         TweenService:Create(LTSwitchKnob, TweenInfo.new(0.15), {Position = targetPos}):Play()
         TweenService:Create(LTSwitchTrack, TweenInfo.new(0.15), {BackgroundColor3 = targetColor}):Play()
-    end)
+    end))
 
     -- 3. Keybind Control
     local KeybindFrame = Instance.new("Frame")
@@ -857,12 +866,12 @@ function Library:CreateWindow(options)
     KeyCorner.Parent = KeyBtn
 
     local binding = false
-    KeyBtn.MouseButton1Click:Connect(function()
+    TrackConnection(KeyBtn.MouseButton1Click:Connect(function()
         binding = true
         KeyBtn.Text = "Tekan..."
-    end)
+    end))
 
-    UserInputService.InputBegan:Connect(function(input, gpe)
+    TrackConnection(UserInputService.InputBegan:Connect(function(input, gpe)
         if binding and input.UserInputType == Enum.UserInputType.Keyboard then
             KeyBtn.Text = input.KeyCode.Name
             binding = false
@@ -873,7 +882,7 @@ function Library:CreateWindow(options)
                 ToggleGUI()
             end
         end
-    end)
+    end))
 
     -- 4. GUI Transparency Slider
     local OpacityFrame = Instance.new("Frame")
@@ -916,24 +925,24 @@ function Library:CreateWindow(options)
         ApplyOpacity(val)
     end
 
-    OBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then 
+    TrackConnection(OBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
             draggingO = true 
             MainFrame.Draggable = false 
             updateOpacity(input) 
         end
-    end)
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 and draggingO then 
+    end))
+    TrackConnection(UserInputService.InputEnded:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and draggingO then 
             draggingO = false 
             MainFrame.Draggable = true 
         end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if draggingO and input.UserInputType == Enum.UserInputType.MouseMovement then 
+    end))
+    TrackConnection(UserInputService.InputChanged:Connect(function(input)
+        if draggingO and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then 
             updateOpacity(input) 
         end
-    end)
+    end))
 
     -- 5. Theme Preset Selector
     local ThemeFrame = Instance.new("Frame")
@@ -980,9 +989,9 @@ function Library:CreateWindow(options)
         TBtnCorner.CornerRadius = UDim.new(0, 4)
         TBtnCorner.Parent = TBtn
 
-        TBtn.MouseButton1Click:Connect(function()
+        TrackConnection(TBtn.MouseButton1Click:Connect(function()
             UpdateGUITheme(t.Color)
-        end)
+        end))
 
         btnOffsetX = btnOffsetX - 55
     end
