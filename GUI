@@ -67,16 +67,16 @@ function Library:CreateWindow(options)
 
     local DEFAULT_ACCENT = Color3.fromRGB(0, 170, 255)
 
-    -- Floating Toggle Button (Ukuran diperkecil & panjang dikurangi)
+    -- Floating Toggle Button (Panjang & ukuran diperkecil agar lebih compact)
     local FloatingBtn = Instance.new("TextButton")
     FloatingBtn.Name = "FloatingHideBtn"
-    FloatingBtn.Size = UDim2.new(0, 125, 0, 38)
+    FloatingBtn.Size = UDim2.new(0, 95, 0, 32)
     FloatingBtn.Position = Config.FloatingPosition
     FloatingBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     FloatingBtn.Text = "  👁️ Hide"
     FloatingBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
     FloatingBtn.Font = Enum.Font.SourceSansBold
-    FloatingBtn.TextSize = 14
+    FloatingBtn.TextSize = 13
     FloatingBtn.TextXAlignment = Enum.TextXAlignment.Left
     FloatingBtn.Visible = Config.ShowFloatingBtn
     FloatingBtn.Parent = ScreenGui
@@ -90,7 +90,7 @@ function Library:CreateWindow(options)
     FloatingStroke.Thickness = 1
     FloatingStroke.Parent = FloatingBtn
 
-    -- Logika Geser (Dragging) dengan Drag Distance Threshold untuk memperbaiki bug klik
+    -- Logika Geser (Dragging) dengan Drag Distance Threshold yang disempurnakan
     local isDraggingFloat = false
     local dragStartPos, startMousePos
     local totalDragDistance = 0
@@ -101,12 +101,12 @@ function Library:CreateWindow(options)
             dragStartPos = FloatingBtn.AbsolutePosition
             startMousePos = input.Position
             totalDragDistance = 0
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    isDraggingFloat = false
-                end
-            end)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isDraggingFloat = false
         end
     end)
 
@@ -150,8 +150,8 @@ function Library:CreateWindow(options)
     end
 
     FloatingBtn.MouseButton1Click:Connect(function()
-        -- Hanya jalankan fungsi klik jika tombol benar-benar ditekan tanpa digeser jauh
-        if totalDragDistance < 5 then
+        -- Jika jarak geser kecil (< 6 pixel), anggap sebagai klik murni
+        if totalDragDistance < 6 then
             ToggleGUI()
         end
     end)
