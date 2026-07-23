@@ -129,25 +129,25 @@ function Library:CreateWindow(options)
     Title.BackgroundTransparency = 1
     Title.Parent = Header
 
-    -- Close Button (FIXED: Ukuran & Font Size diperbesar)
+    -- Close Button (FIXED: Ukuran awal 30x30, Font Text Size diperbesar ke 22)
     local CloseBtn = Instance.new("TextButton")
-    CloseBtn.Size = UDim2.new(0, 32, 0, 32)
-    CloseBtn.Position = UDim2.new(1, -38, 0.5, -16)
+    CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+    CloseBtn.Position = UDim2.new(1, -38, 0.5, -15)
     CloseBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     CloseBtn.Text = "X"
     CloseBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
     CloseBtn.Font = Enum.Font.SourceSansBold
-    CloseBtn.TextSize = 18
+    CloseBtn.TextSize = 22
     CloseBtn.Parent = Header
 
     local CloseCorner = Instance.new("UICorner")
     CloseCorner.CornerRadius = UDim.new(0, 6)
     CloseCorner.Parent = CloseBtn
 
-    -- Setting Button (FIXED: Posisi disesuaikan dengan CloseBtn)
+    -- Setting Button (Kembali ke ukuran 30x30)
     local SettingBtn = Instance.new("TextButton")
-    SettingBtn.Size = UDim2.new(0, 32, 0, 32)
-    SettingBtn.Position = UDim2.new(1, -76, 0.5, -16)
+    SettingBtn.Size = UDim2.new(0, 30, 0, 30)
+    SettingBtn.Position = UDim2.new(1, -74, 0.5, -15)
     SettingBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     SettingBtn.Text = "⚙️"
     SettingBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -438,14 +438,24 @@ function Library:CreateWindow(options)
                 callback(value)
             end
 
+            -- FIX BUG: Matikan Draggable GUI saat menggeser slider
             Bar.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true update(input) end
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then 
+                    dragging = true 
+                    MainFrame.Draggable = false 
+                    update(input) 
+                end
             end)
             UserInputService.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+                if input.UserInputType == Enum.UserInputType.MouseButton1 and dragging then 
+                    dragging = false 
+                    MainFrame.Draggable = true 
+                end
             end)
             UserInputService.InputChanged:Connect(function(input)
-                if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then update(input) end
+                if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then 
+                    update(input) 
+                end
             end)
         end
 
@@ -668,7 +678,7 @@ function Library:CreateWindow(options)
         end
     end)
 
-    -- 2. GUI Transparency Slider
+    -- 2. GUI Transparency Slider (Dengan Fix Bug Slider Drag)
     local OpacityFrame = Instance.new("Frame")
     OpacityFrame.Size = UDim2.new(1, -5, 0, 48)
     OpacityFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
@@ -710,13 +720,22 @@ function Library:CreateWindow(options)
     end
 
     OBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then draggingO = true updateOpacity(input) end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then 
+            draggingO = true 
+            MainFrame.Draggable = false 
+            updateOpacity(input) 
+        end
     end)
     UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then draggingO = false end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 and draggingO then 
+            draggingO = false 
+            MainFrame.Draggable = true 
+        end
     end)
     UserInputService.InputChanged:Connect(function(input)
-        if draggingO and input.UserInputType == Enum.UserInputType.MouseMovement then updateOpacity(input) end
+        if draggingO and input.UserInputType == Enum.UserInputType.MouseMovement then 
+            updateOpacity(input) 
+        end
     end)
 
     -- 3. Theme Preset Selector
