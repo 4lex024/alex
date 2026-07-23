@@ -57,7 +57,16 @@ function Library:CreateWindow(options)
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = GUI_NAME
     ScreenGui.ResetOnSpawn = false
-    ScreenGui.Parent = PlayerGui
+    
+    -- ====================================================
+    -- PENAMBAHAN AGAR GUI DI PALING DEPAN (TIDAK TERTIMPA)
+    -- ====================================================
+    ScreenGui.DisplayOrder = 999999999 -- Mengatur urutan lapisan tertinggi
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling -- Pengaturan indeks lapisan sibling
+    
+    -- Menentukan target parent (mencoba CoreGui terlebih dahulu, jika gagal ke PlayerGui)
+    local parentTarget = pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui") or PlayerGui
+    ScreenGui.Parent = parentTarget
 
     -- Main Sizes
     local normalSize = UDim2.new(0, 520, 0, 340)
