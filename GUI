@@ -12,6 +12,7 @@ getgenv()._4LEX_TEMP_CONFIG = getgenv()._4LEX_TEMP_CONFIG or {
     ToggleKey = "K",
     GuiOpacity = 0,
     ThemeColor = {15, 15, 15},
+    ShowFloatingBtn = true, -- Default aktif untuk floating button
     Toggles = {},
     Sliders = {},
     Dropdowns = {}
@@ -64,6 +65,29 @@ function Library:CreateWindow(options)
 
     local DEFAULT_ACCENT = Color3.fromRGB(0, 170, 255)
 
+    -- Floating Toggle Button (Tombol Terpisah di Kiri Bawah)
+    local FloatingBtn = Instance.new("TextButton")
+    FloatingBtn.Name = "FloatingHideBtn"
+    FloatingBtn.Size = UDim2.new(0, 115, 0, 36)
+    FloatingBtn.Position = UDim2.new(0, 15, 1, -50)
+    FloatingBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    FloatingBtn.Text = "  👁️ Hide GUI"
+    FloatingBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+    FloatingBtn.Font = Enum.Font.SourceSansBold
+    FloatingBtn.TextSize = 13
+    FloatingBtn.TextXAlignment = Enum.TextXAlignment.Left
+    FloatingBtn.Visible = Config.ShowFloatingBtn
+    FloatingBtn.Parent = ScreenGui
+
+    local FloatingCorner = Instance.new("UICorner")
+    FloatingCorner.CornerRadius = UDim.new(1, 0)
+    FloatingCorner.Parent = FloatingBtn
+
+    local FloatingStroke = Instance.new("UIStroke")
+    FloatingStroke.Color = Color3.fromRGB(50, 50, 50)
+    FloatingStroke.Thickness = 1
+    FloatingStroke.Parent = FloatingBtn
+
     -- Animation Logic
     local isBusy = false
     local function ToggleGUI(show)
@@ -90,6 +114,10 @@ function Library:CreateWindow(options)
         end
         isBusy = false
     end
+
+    FloatingBtn.MouseButton1Click:Connect(function()
+        ToggleGUI()
+    end)
 
     -- Header
     local Header = Instance.new("Frame")
@@ -345,7 +373,6 @@ function Library:CreateWindow(options)
             end)
         end
 
-        -- BUTTON DENGAN BENTUK PILL SHAPE / CAPSULE (Sudut Melingkar Penuh)
         function TabElements:CreateButton(opts)
             local scriptName = opts.Name or "Button"
             local callback = opts.Callback or function() end
@@ -380,7 +407,6 @@ function Library:CreateWindow(options)
             Btn.TextSize = 13
             Btn.Parent = Frame
 
-            -- Mengubah sudut tombol menjadi pill shape / capsule (melingkar penuh)
             local BtnCorner = Instance.new("UICorner")
             BtnCorner.CornerRadius = UDim.new(1, 0)
             BtnCorner.Parent = Btn
@@ -625,7 +651,60 @@ function Library:CreateWindow(options)
         SettingPage.Visible = true
     end)
 
-    -- 1. Keybind Control
+    -- 1. Floating Hide Button Toggle
+    local FloatToggleFrame = Instance.new("Frame")
+    FloatToggleFrame.Size = UDim2.new(1, -5, 0, 36)
+    FloatToggleFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+    FloatToggleFrame.Parent = SettingPage
+
+    local FTCorner = Instance.new("UICorner")
+    FTCorner.CornerRadius = UDim.new(0, 4)
+    FTCorner.Parent = FloatToggleFrame
+
+    local FTLabel = Instance.new("TextLabel")
+    FTLabel.Size = UDim2.new(1, -65, 1, 0)
+    FTLabel.Position = UDim2.new(0, 10, 0, 0)
+    FTLabel.BackgroundTransparency = 1
+    FTLabel.Text = "Show Floating Hide Button"
+    FTLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+    FTLabel.Font = Enum.Font.SourceSans
+    FTLabel.TextSize = 14
+    FTLabel.TextXAlignment = Enum.TextXAlignment.Left
+    FTLabel.Parent = FloatToggleFrame
+
+    local FTSwitchTrack = Instance.new("TextButton")
+    FTSwitchTrack.Size = UDim2.new(0, 42, 0, 22)
+    FTSwitchTrack.Position = UDim2.new(1, -50, 0.5, -11)
+    FTSwitchTrack.BackgroundColor3 = Config.ShowFloatingBtn and DEFAULT_ACCENT or Color3.fromRGB(50, 50, 50)
+    FTSwitchTrack.Text = ""
+    FTSwitchTrack.AutoButtonColor = false
+    FTSwitchTrack.Parent = FloatToggleFrame
+
+    local FTTrackCorner = Instance.new("UICorner")
+    FTTrackCorner.CornerRadius = UDim.new(1, 0)
+    FTTrackCorner.Parent = FTSwitchTrack
+
+    local FTSwitchKnob = Instance.new("Frame")
+    FTSwitchKnob.Size = UDim2.new(0, 16, 0, 16)
+    FTSwitchKnob.Position = Config.ShowFloatingBtn and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+    FTSwitchKnob.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+    FTSwitchKnob.Parent = FTSwitchTrack
+
+    local FTKnobCorner = Instance.new("UICorner")
+    FTKnobCorner.CornerRadius = UDim.new(1, 0)
+    FTKnobCorner.Parent = FTSwitchKnob
+
+    FTSwitchTrack.MouseButton1Click:Connect(function()
+        Config.ShowFloatingBtn = not Config.ShowFloatingBtn
+        FloatingBtn.Visible = Config.ShowFloatingBtn
+        
+        local targetPos = Config.ShowFloatingBtn and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+        local targetColor = Config.ShowFloatingBtn and DEFAULT_ACCENT or Color3.fromRGB(50, 50, 50)
+        TweenService:Create(FTSwitchKnob, TweenInfo.new(0.15), {Position = targetPos}):Play()
+        TweenService:Create(FTSwitchTrack, TweenInfo.new(0.15), {BackgroundColor3 = targetColor}):Play()
+    end)
+
+    -- 2. Keybind Control
     local KeybindFrame = Instance.new("Frame")
     KeybindFrame.Size = UDim2.new(1, -5, 0, 36)
     KeybindFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
@@ -679,7 +758,7 @@ function Library:CreateWindow(options)
         end
     end)
 
-    -- 2. GUI Transparency Slider
+    -- 3. GUI Transparency Slider
     local OpacityFrame = Instance.new("Frame")
     OpacityFrame.Size = UDim2.new(1, -5, 0, 48)
     OpacityFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
@@ -739,7 +818,7 @@ function Library:CreateWindow(options)
         end
     end)
 
-    -- 3. Theme Preset Selector
+    -- 4. Theme Preset Selector
     local ThemeFrame = Instance.new("Frame")
     ThemeFrame.Size = UDim2.new(1, -5, 0, 36)
     ThemeFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
