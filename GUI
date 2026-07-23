@@ -13,7 +13,8 @@ getgenv()._4LEX_TEMP_CONFIG = getgenv()._4LEX_TEMP_CONFIG or {
     GuiOpacity = 0,
     ThemeColor = {15, 15, 15},
     Toggles = {},
-    Sliders = {}
+    Sliders = {},
+    Dropdowns = {}
 }
 
 local Config = getgenv()._4LEX_TEMP_CONFIG
@@ -233,6 +234,8 @@ function Library:CreateWindow(options)
         Page.BorderSizePixel = 0
         Page.Visible = false
         Page.ScrollBarThickness = 3
+        Page.CanvasSize = UDim2.new(0, 0, 0, 0)
+        Page.AutomaticCanvasSize = Enum.AutomaticSize.Y
         Page.Parent = ContentContainer
 
         local PageLayout = Instance.new("UIListLayout")
@@ -486,6 +489,114 @@ function Library:CreateWindow(options)
 
             InputBox.FocusLost:Connect(function(enterPressed)
                 if enterPressed then callback(InputBox.Text) end
+            end)
+        end
+
+        -- DROPDOWN COMPONENT
+        function TabElements:CreateDropdown(opts)
+            local dropName = opts.Name or "Dropdown"
+            local options = opts.Options or {}
+            local currentOption = Config.Dropdowns[dropName] or opts.CurrentOption or (options[1] or "None")
+            local callback = opts.Callback or function() end
+
+            local DropFrame = Instance.new("Frame")
+            DropFrame.Size = UDim2.new(1, -5, 0, 36)
+            DropFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+            DropFrame.ClipsDescendants = true
+            DropFrame.Parent = Page
+
+            local Corner = Instance.new("UICorner")
+            Corner.CornerRadius = UDim.new(0, 4)
+            Corner.Parent = DropFrame
+
+            local Label = Instance.new("TextLabel")
+            Label.Size = UDim2.new(0.45, -10, 0, 36)
+            Label.Position = UDim2.new(0, 10, 0, 0)
+            Label.BackgroundTransparency = 1
+            Label.Text = dropName
+            Label.TextColor3 = Color3.fromRGB(220, 220, 220)
+            Label.Font = Enum.Font.SourceSans
+            Label.TextSize = 14
+            Label.TextXAlignment = Enum.TextXAlignment.Left
+            Label.Parent = DropFrame
+
+            local DropBtn = Instance.new("TextButton")
+            DropBtn.Size = UDim2.new(0, 130, 0, 26)
+            DropBtn.Position = UDim2.new(1, -138, 0, 5)
+            DropBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+            DropBtn.Text = currentOption .. "  ▼"
+            DropBtn.TextColor3 = DEFAULT_ACCENT
+            DropBtn.Font = Enum.Font.SourceSansBold
+            DropBtn.TextSize = 13
+            DropBtn.Parent = DropFrame
+
+            local DropCorner = Instance.new("UICorner")
+            DropCorner.CornerRadius = UDim.new(0, 4)
+            DropCorner.Parent = DropBtn
+
+            local OptionHolder = Instance.new("ScrollingFrame")
+            OptionHolder.Size = UDim2.new(1, -20, 0, 0)
+            OptionHolder.Position = UDim2.new(0, 10, 0, 40)
+            OptionHolder.BackgroundTransparency = 1
+            OptionHolder.BorderSizePixel = 0
+            OptionHolder.ScrollBarThickness = 2
+            OptionHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
+            OptionHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
+            OptionHolder.Parent = DropFrame
+
+            local OptionLayout = Instance.new("UIListLayout")
+            OptionLayout.Padding = UDim.new(0, 4)
+            OptionLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            OptionLayout.Parent = OptionHolder
+
+            local isOpen = false
+
+            local function RefreshDropdown()
+                for _, child in ipairs(OptionHolder:GetChildren()) do
+                    if child:IsA("TextButton") then child:Destroy() end
+                end
+
+                for _, opt in ipairs(options) do
+                    local OptBtn = Instance.new("TextButton")
+                    OptBtn.Size = UDim2.new(1, -5, 0, 24)
+                    OptBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+                    OptBtn.Text = opt
+                    OptBtn.TextColor3 = (opt == currentOption) and DEFAULT_ACCENT or Color3.fromRGB(200, 200, 200)
+                    OptBtn.Font = Enum.Font.SourceSans
+                    OptBtn.TextSize = 13
+                    OptBtn.Parent = OptionHolder
+
+                    local OptCorner = Instance.new("UICorner")
+                    OptCorner.CornerRadius = UDim.new(0, 4)
+                    OptCorner.Parent = OptBtn
+
+                    OptBtn.MouseButton1Click:Connect(function()
+                        currentOption = opt
+                        Config.Dropdowns[dropName] = opt
+                        DropBtn.Text = currentOption .. "  ▼"
+                        
+                        -- Animate Close
+                        isOpen = false
+                        TweenService:Create(DropFrame, TweenInfo.new(0.2), {Size = UDim2.new(1, -5, 0, 36)}):Play()
+                        TweenService:Create(OptionHolder, TweenInfo.new(0.2), {Size = UDim2.new(1, -20, 0, 0)}):Play()
+
+                        RefreshDropdown()
+                        callback(opt)
+                    end)
+                end
+            end
+
+            RefreshDropdown()
+            if Config.Dropdowns[dropName] then task.spawn(function() callback(currentOption) end) end
+
+            DropBtn.MouseButton1Click:Connect(function()
+                isOpen = not isOpen
+                local targetHeight = isOpen and math.min(#options * 28 + 45, 150) or 36
+                local holderHeight = isOpen and (targetHeight - 45) or 0
+
+                DropBtn.Text = currentOption .. (isOpen and "  ▲" or "  ▼")
+                TweenService:Create(DropFrame, TweenInfo.new(0.2), {Size = UDim2.new(1, -5, 0, targetHeight)}):Play()
+                TweenService:Create(OptionHolder, TweenInfo.new(0.2), {Size = UDim2.new(1, -20, 0, holderHeight)}):Play()
             end)
         end
 
