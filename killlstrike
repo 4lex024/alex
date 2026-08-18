@@ -1,0 +1,175 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "Flick | Aimbot Hub",
+   LoadingTitle = "Flick Script Loading...",
+   LoadingSubtitle = "by Gemini",
+   ConfigurationSaving = { Enabled = false }
+})
+
+local Player = game.Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+
+-- SEKMELER
+local CombatTab = Window:CreateTab("Combat", 4483345998)
+
+--- [ CIRCLE FOV DRAWING ] ---
+
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 1.5
+FOVCircle.NumSides = 60
+FOVCircle.Radius = 150
+FOVCircle.Filled = false
+FOVCircle.Visible = false
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+
+--- [ COMBAT - AIMBOT ] ---
+
+local AimbotEnabled = false
+local TeamCheckEnabled = true
+local WallCheckEnabled = true
+local FOVRadius = 150
+local Smoothness = 0.2
+
+CombatTab:CreateToggle({
+   Name = "Always-On Auto Aim",
+   CurrentValue = false,
+   Flag = "AimbotToggle",
+   Callback = function(Value)
+      AimbotEnabled = Value
+      FOVCircle.Visible = Value
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Team Check (Enemies Only)",
+   CurrentValue = true,
+   Flag = "TeamCheckToggle",
+   Callback = function(Value)
+      TeamCheckEnabled = Value
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Wall Check",
+   CurrentValue = true,
+   Flag = "WallCheckToggle",
+   Callback = function(Value)
+      WallCheckEnabled = Value
+   end,
+})
+
+CombatTab:CreateSlider({
+   Name = "Aim Smoothness",
+   Range = {1, 100},
+   Increment = 1,
+   CurrentValue = 20,
+   Callback = function(Value)
+      Smoothness = Value / 100
+   end,
+})
+
+CombatTab:CreateSlider({
+   Name = "FOV Circle Size",
+   Range = {30, 500},
+   Increment = 5,
+   CurrentValue = 150,
+   Callback = function(Value)
+      FOVRadius = Value
+      FOVCircle.Radius = Value
+   end,
+})
+
+-- Fungsi Pengecekan Tim (Enemy Check)
+local function IsEnemy(targetPlayer)
+   if not TeamCheckEnabled then return true end
+   
+   -- Cek berdasarkan properti Team atau TeamColor dari LocalPlayer
+   if Player.Team ~= nil and targetPlayer.Team ~= nil then
+      return Player.Team ~= targetPlayer.Team
+   elseif Player.TeamColor ~= nil and targetPlayer.TeamColor ~= nil then
+      return Player.TeamColor ~= targetPlayer.TeamColor
+   end
+   
+   return true -- Jika game tidak memakai sistem tim, dianggap musuh
+end
+
+-- Fungsi Wall Check
+local function IsVisible(targetHead)
+   if not WallCheckEnabled then return true end
+   
+   local raycastParams = RaycastParams.new()
+   raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+   
+   local ignoreList = {}
+   if Player.Character then table.insert(ignoreList, Player.Character) end
+   if targetHead.Parent then table.insert(ignoreList, targetHead.Parent) end
+   raycastParams.FilterDescendantsInstances = ignoreList
+
+   local origin = Camera.CFrame.Position
+   local direction = targetHead.Position - origin
+   local result = workspace:Raycast(origin, direction, raycastParams)
+
+   return result == nil
+end
+
+-- Fungsi mencari target terdekat dari Tengah Layar
+local function GetClosestTarget(screenCenter)
+   local closestHead = nil
+   local closestDist = FOVRadius
+   
+   if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+      for _, v in pairs(game.Players:GetPlayers()) do
+         -- Pastikan pemain bukan diri sendiri DAN merupakan musuh
+         if v ~= Player and IsEnemy(v) and v.Character and v.Character:FindFirstChild("Head") then
+            local humanoid = v.Character:FindFirstChildOfClass("Humanoid")
+            local head = v.Character.Head
+            
+            if humanoid and humanoid.Health > 0 then
+               local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+               
+               if onScreen then
+                  local screenPos2D = Vector2.new(screenPos.X, screenPos.Y)
+                  local distToCenter = (screenPos2D - screenCenter).Magnitude
+                  
+                  if distToCenter < closestDist and IsVisible(head) then
+                     closestDist = distToCenter
+                     closestHead = head
+                  end
+               end
+            end
+         end
+      end
+   end
+   
+   return closestHead
+end
+
+-- Loop Auto Aim
+RunService.RenderStepped:Connect(function()
+   local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+   FOVCircle.Position = screenCenter
+
+   if AimbotEnabled and Player.Character then
+      local character = Player.Character
+      local rootPart = character:FindFirstChild("HumanoidRootPart")
+      
+      if rootPart then
+         local target = GetClosestTarget(screenCenter)
+         
+         if target then
+            -- Putar Kamera ke arah target
+            local targetCamCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+            Camera.CFrame = Camera.CFrame:Lerp(targetCamCFrame, Smoothness)
+            
+            -- Putar Karakter secara horizontal menghadap target
+            local targetLookPos = Vector3.new(target.Position.X, rootPart.Position.Y, target.Position.Z)
+            local targetRootCFrame = CFrame.new(rootPart.Position, targetLookPos)
+            rootPart.CFrame = rootPart.CFrame:Lerp(targetRootCFrame, Smoothness)
+         end
+      end
+   end
+end)
+
+Rayfield:Notify({Title = "Flick Script", Content = "Team Check Aimbot Loaded!", Duration = 3})
