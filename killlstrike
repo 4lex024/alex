@@ -1,18 +1,23 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "Flick | Aimbot Hub",
-   LoadingTitle = "Flick Script Loading...",
-   LoadingSubtitle = "by Gemini",
-   ConfigurationSaving = { Enabled = false }
+    Name = "Flick | Hub",
+    LoadingTitle = "Flick Script Loading...",
+    LoadingSubtitle = "by Gemini",
+    ConfigurationSaving = { Enabled = false }
 })
 
-local Player = game.Players.LocalPlayer
-local Camera = workspace.CurrentCamera
+-- SERVICES & UTILITIES
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 
--- SEKMELER
+local Player = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- SEKMELER (TABS)
 local CombatTab = Window:CreateTab("Combat", 4483345998)
+local UtilityTab = Window:CreateTab("Utilities", 4483345998)
 
 --- [ CIRCLE FOV DRAWING ] ---
 
@@ -24,152 +29,257 @@ FOVCircle.Filled = false
 FOVCircle.Visible = false
 FOVCircle.Color = Color3.fromRGB(255, 255, 255)
 
---- [ COMBAT - AIMBOT ] ---
+--- [ VARIABEL KONTROL (DEFAULT OFF) ] ---
 
 local AimbotEnabled = false
-local TeamCheckEnabled = true
-local WallCheckEnabled = true
+local WallCheckEnabled = false
+local PartyCheckEnabled = false
+local ArcadeCheckEnabled = false
+local ESPEnabled = false
+local InstantPromptEnabled = false
 local FOVRadius = 150
-local Smoothness = 0.2
 
-CombatTab:CreateToggle({
-   Name = "Always-On Auto Aim",
-   CurrentValue = false,
-   Flag = "AimbotToggle",
-   Callback = function(Value)
-      AimbotEnabled = Value
-      FOVCircle.Visible = Value
-   end,
-})
+--- [ FUNGSI DUAL-MODE TEAM CHECK ] ---
 
-CombatTab:CreateToggle({
-   Name = "Team Check (Enemies Only)",
-   CurrentValue = true,
-   Flag = "TeamCheckToggle",
-   Callback = function(Value)
-      TeamCheckEnabled = Value
-   end,
-})
-
-CombatTab:CreateToggle({
-   Name = "Wall Check",
-   CurrentValue = true,
-   Flag = "WallCheckToggle",
-   Callback = function(Value)
-      WallCheckEnabled = Value
-   end,
-})
-
-CombatTab:CreateSlider({
-   Name = "Aim Smoothness",
-   Range = {1, 100},
-   Increment = 1,
-   CurrentValue = 20,
-   Callback = function(Value)
-      Smoothness = Value / 100
-   end,
-})
-
-CombatTab:CreateSlider({
-   Name = "FOV Circle Size",
-   Range = {30, 500},
-   Increment = 5,
-   CurrentValue = 150,
-   Callback = function(Value)
-      FOVRadius = Value
-      FOVCircle.Radius = Value
-   end,
-})
-
--- Fungsi Pengecekan Tim (Enemy Check)
 local function IsEnemy(targetPlayer)
-   if not TeamCheckEnabled then return true end
-   
-   -- Cek berdasarkan properti Team atau TeamColor dari LocalPlayer
-   if Player.Team ~= nil and targetPlayer.Team ~= nil then
-      return Player.Team ~= targetPlayer.Team
-   elseif Player.TeamColor ~= nil and targetPlayer.TeamColor ~= nil then
-      return Player.TeamColor ~= targetPlayer.TeamColor
-   end
-   
-   return true -- Jika game tidak memakai sistem tim, dianggap musuh
-end
+    if not targetPlayer then return false end
 
--- Fungsi Wall Check
-local function IsVisible(targetHead)
-   if not WallCheckEnabled then return true end
-   
-   local raycastParams = RaycastParams.new()
-   raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-   
-   local ignoreList = {}
-   if Player.Character then table.insert(ignoreList, Player.Character) end
-   if targetHead.Parent then table.insert(ignoreList, targetHead.Parent) end
-   raycastParams.FilterDescendantsInstances = ignoreList
+    -- 1. Cek Mode Party (jika aktif)
+    if PartyCheckEnabled then
+        local myParty = Player:GetAttribute("Party")
+        local targetParty = targetPlayer:GetAttribute("Party")
 
-   local origin = Camera.CFrame.Position
-   local direction = targetHead.Position - origin
-   local result = workspace:Raycast(origin, direction, raycastParams)
-
-   return result == nil
-end
-
--- Fungsi mencari target terdekat dari Tengah Layar
-local function GetClosestTarget(screenCenter)
-   local closestHead = nil
-   local closestDist = FOVRadius
-   
-   if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-      for _, v in pairs(game.Players:GetPlayers()) do
-         -- Pastikan pemain bukan diri sendiri DAN merupakan musuh
-         if v ~= Player and IsEnemy(v) and v.Character and v.Character:FindFirstChild("Head") then
-            local humanoid = v.Character:FindFirstChildOfClass("Humanoid")
-            local head = v.Character.Head
-            
-            if humanoid and humanoid.Health > 0 then
-               local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-               
-               if onScreen then
-                  local screenPos2D = Vector2.new(screenPos.X, screenPos.Y)
-                  local distToCenter = (screenPos2D - screenCenter).Magnitude
-                  
-                  if distToCenter < closestDist and IsVisible(head) then
-                     closestDist = distToCenter
-                     closestHead = head
-                  end
-               end
+        if myParty ~= nil and targetParty ~= nil then
+            if tostring(myParty) == tostring(targetParty) then
+                return false -- Satu Party = Teman
             end
-         end
-      end
-   end
-   
-   return closestHead
+        end
+    end
+
+    -- 2. Cek Mode Arcade / Roblox Team (jika aktif)
+    if ArcadeCheckEnabled then
+        if Player.Team ~= nil and targetPlayer.Team ~= nil then
+            if Player.Team == targetPlayer.Team then
+                return false -- Satu Tim Roblox = Teman
+            end
+        elseif Player.TeamColor ~= nil and targetPlayer.TeamColor ~= nil then
+            if Player.TeamColor == targetPlayer.TeamColor then
+                return false -- Warna Tim Sama = Teman
+            end
+        end
+    end
+
+    -- Jika kedua mode OFF atau tidak terdeteksi sama = Musuh
+    return true
 end
 
--- Loop Auto Aim
-RunService.RenderStepped:Connect(function()
-   local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-   FOVCircle.Position = screenCenter
+--- [ FUNGSI WALL CHECK ] ---
 
-   if AimbotEnabled and Player.Character then
-      local character = Player.Character
-      local rootPart = character:FindFirstChild("HumanoidRootPart")
-      
-      if rootPart then
-         local target = GetClosestTarget(screenCenter)
-         
-         if target then
-            -- Putar Kamera ke arah target
-            local targetCamCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-            Camera.CFrame = Camera.CFrame:Lerp(targetCamCFrame, Smoothness)
+local function IsVisible(targetHead)
+    if not WallCheckEnabled then return true end
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    
+    local ignoreList = {}
+    if Player.Character then table.insert(ignoreList, Player.Character) end
+    if targetHead.Parent then table.insert(ignoreList, targetHead.Parent) end
+    raycastParams.FilterDescendantsInstances = ignoreList
+
+    local origin = Camera.CFrame.Position
+    local direction = targetHead.Position - origin
+    local result = workspace:Raycast(origin, direction, raycastParams)
+
+    return result == nil
+end
+
+--- [ FUNGSI SEARCH TARGET AIMBOT ] ---
+
+local function GetClosestTarget(screenCenter)
+    local closestHead = nil
+    local closestDist = FOVRadius
+    
+    if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+        for _, v in pairs(Players:GetPlayers()) do
+            -- Filter: Bukan diri sendiri & Harus Musuh (berdasarkan logika IsEnemy)
+            if v ~= Player and IsEnemy(v) and v.Character and v.Character:FindFirstChild("Head") then
+                local humanoid = v.Character:FindFirstChildOfClass("Humanoid")
+                local head = v.Character.Head
+                
+                if humanoid and humanoid.Health > 0 then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+                    
+                    if onScreen then
+                        local screenPos2D = Vector2.new(screenPos.X, screenPos.Y)
+                        local distToCenter = (screenPos2D - screenCenter).Magnitude
+                        
+                        if distToCenter < closestDist and IsVisible(head) then
+                            closestDist = distToCenter
+                            closestHead = head
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return closestHead
+end
+
+--- [ FUNGSI HIGHLIGHT ESP ] ---
+
+local function UpdateHighlight(targetPlayer)
+    if targetPlayer == Player then return end
+
+    local character = targetPlayer.Character
+    if not character then return end
+
+    local highlight = character:FindFirstChild("FlickHighlight")
+
+    if ESPEnabled then
+        if not highlight then
+            highlight = Instance.new("Highlight")
+            highlight.Name = "FlickHighlight"
+            highlight.FillTransparency = 0.5
+            highlight.OutlineTransparency = 0
+            highlight.Parent = character
+        end
+
+        if IsEnemy(targetPlayer) then
+            highlight.FillColor = Color3.fromRGB(255, 0, 0)      -- Merah = Musuh
+            highlight.OutlineColor = Color3.fromRGB(255, 50, 50)
+        else
+            highlight.FillColor = Color3.fromRGB(0, 255, 0)      -- Hijau = Teman
+            highlight.OutlineColor = Color3.fromRGB(50, 255, 50)
+        end
+    else
+        if highlight then
+            highlight:Destroy()
+        end
+    end
+end
+
+--- [ UI ELEMENTS - COMBAT TAB ] ---
+
+CombatTab:CreateToggle({
+    Name = "Always-On Auto Aim",
+    CurrentValue = false,
+    Flag = "AimbotToggle",
+    Callback = function(Value)
+        AimbotEnabled = Value
+        FOVCircle.Visible = Value
+    end,
+})
+
+-- Variabel penampung element UI agar bisa di-Set() dari callback lain
+local PartyToggle, ArcadeToggle
+
+PartyToggle = CombatTab:CreateToggle({
+    Name = "Team Check (Party)",
+    CurrentValue = false,
+    Flag = "PartyCheckToggle",
+    Callback = function(Value)
+        PartyCheckEnabled = Value
+        if Value and ArcadeCheckEnabled then
+            -- Matikan Arcade Toggle jika Party Toggle dinyalakan
+            ArcadeToggle:Set(false)
+        end
+    end,
+})
+
+ArcadeToggle = CombatTab:CreateToggle({
+    Name = "Team Check (Arcade)",
+    CurrentValue = false,
+    Flag = "ArcadeCheckToggle",
+    Callback = function(Value)
+        ArcadeCheckEnabled = Value
+        if Value and PartyCheckEnabled then
+            -- Matikan Party Toggle jika Arcade Toggle dinyalakan
+            PartyToggle:Set(false)
+        end
+    end,
+})
+
+CombatTab:CreateToggle({
+    Name = "Wall Check",
+    CurrentValue = false,
+    Flag = "WallCheckToggle",
+    Callback = function(Value)
+        WallCheckEnabled = Value
+    end,
+})
+
+CombatTab:CreateSlider({
+    Name = "FOV Circle Size",
+    Range = {30, 500},
+    Increment = 5,
+    CurrentValue = 150,
+    Callback = function(Value)
+        FOVRadius = Value
+        FOVCircle.Radius = Value
+    end,
+})
+
+--- [ UI ELEMENTS - UTILITY TAB ] ---
+
+UtilityTab:CreateToggle({
+    Name = "Highlight ESP (Green = Team, Red = Enemy)",
+    CurrentValue = false,
+    Flag = "ESPToggle",
+    Callback = function(Value)
+        ESPEnabled = Value
+    end,
+})
+
+UtilityTab:CreateToggle({
+    Name = "Instant ProximityPrompt",
+    CurrentValue = false,
+    Flag = "InstantPromptToggle",
+    Callback = function(Value)
+        InstantPromptEnabled = Value
+    end,
+})
+
+--- [ MAIN LOOPS & EVENTS ] ---
+
+-- Loop Real-Time (Aimbot & Circle Position)
+RunService.RenderStepped:Connect(function()
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    FOVCircle.Position = screenCenter
+
+    if AimbotEnabled and Player.Character then
+        local character = Player.Character
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        
+        if rootPart then
+            local target = GetClosestTarget(screenCenter)
             
-            -- Putar Karakter secara horizontal menghadap target
-            local targetLookPos = Vector3.new(target.Position.X, rootPart.Position.Y, target.Position.Z)
-            local targetRootCFrame = CFrame.new(rootPart.Position, targetLookPos)
-            rootPart.CFrame = rootPart.CFrame:Lerp(targetRootCFrame, Smoothness)
-         end
-      end
-   end
+            if target then
+                -- Putar Kamera langsung ke arah target
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+                
+                -- Putar Karakter secara horizontal
+                local targetLookPos = Vector3.new(target.Position.X, rootPart.Position.Y, target.Position.Z)
+                rootPart.CFrame = CFrame.new(rootPart.Position, targetLookPos)
+            end
+        end
+    end
 end)
 
-Rayfield:Notify({Title = "Flick Script", Content = "Team Check Aimbot Loaded!", Duration = 3})
+-- Loop ESP Updates
+RunService.Heartbeat:Connect(function()
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= Player and v.Character then
+            UpdateHighlight(v)
+        end
+    end
+end)
+
+-- Instant Proximity Prompt Listener
+ProximityPromptService.PromptShown:Connect(function(prompt)
+    if InstantPromptEnabled then
+        prompt.HoldDuration = 0
+    end
+end)
+
+Rayfield:Notify({Title = "Flick Hub", Content = "Script Loaded (All Toggles Default OFF)!", Duration = 3})
